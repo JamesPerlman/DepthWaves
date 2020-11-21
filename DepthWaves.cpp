@@ -635,7 +635,7 @@ ParamsSetup (
 	AEFX_CLR_STRUCT(def);
 
 	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Wave_Velocity_Slider_Name),
+		STR(StrID_Wave_Decay_Slider_Name),
 		DepthWaves_WAVE_DECAY_SLIDER_MIN,
 		DepthWaves_WAVE_DECAY_SLIDER_MAX,
 		DepthWaves_WAVE_DECAY_SLIDER_MIN,
