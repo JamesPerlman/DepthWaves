@@ -23,6 +23,9 @@
     <Filter Include="glbinding\gl">
       <UniqueIdentifier>{88fc9faa-129c-4133-b5da-49c09f9f1921}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Data Types">
+      <UniqueIdentifier>{86d5461e-ad67-4ef7-9ee9-b1ddfdc6720b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\GL_base.h">
@@ -117,6 +120,9 @@
     </ClInclude>
     <ClInclude Include="..\DepthWaves_Strings.h">
       <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="gl_plus.h">
+      <Filter>Data Types</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -217,6 +223,9 @@
       <Filter>Supporting code</Filter>
     </ClCompile>
     <ClCompile Include="..\DepthWaves.cpp" />
+    <ClCompile Include="CameraTransform.h">
+      <Filter>Data Types</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\DepthWavesPiPL.r">

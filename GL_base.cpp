@@ -52,6 +52,7 @@ This plugin is kept only for reference.
 #include <sstream>
 #include <iostream>
 
+
 using namespace gl45core;
 
 namespace AESDK_OpenGL
@@ -330,25 +331,37 @@ namespace AESDK_OpenGL
 		}
 	#endif
 
-		// VBO quad
-		GLuint CreateQuad(u_int16 widthL, u_int16 heightL)
+		// Allocate vertex buffer
+		GLuint CreateVertexBuffer(u_int16 widthL, u_int16 heightL)
 		{
-			// X, Y, X, U, V
-			float positions[] = {
-				0,				0,				0.0f, 0.0f, 0.0f, // A
-				(float)widthL,	0,				0.0f, 1.0f, 0.0f, // B
-				0,				(float)heightL, 0.0f, 0.0f, 1.0f, // C
-				(float)widthL,	(float)heightL, 0.0f, 1.0f, 1.0f, // D
-			};
+			size_t bufferSize = widthL * heightL * sizeof(Vertex);
+			Vertex *verts = (Vertex*)malloc(bufferSize);
 
 			GLuint vbo;
 			glGenBuffers(1, &vbo);
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+			glBufferData(GL_ARRAY_BUFFER, bufferSize, verts, GL_DYNAMIC_DRAW);
+
+			free(verts);
 
 			return vbo;
 		}
 
+		// Allocate wave buffer
+		GLuint CreateWaveBuffer(u_int16 waveCountL)
+		{
+			size_t bufferSize = waveCountL * sizeof(Wave);
+			Wave *waves = (Wave*)malloc(bufferSize);
+
+			GLuint vbo;
+			glGenBuffers(1, &vbo);
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			glBufferData(GL_ARRAY_BUFFER, bufferSize, waves, GL_DYNAMIC_DRAW);
+
+			free(waves);
+
+			return vbo;
+		}
 	} // namespace anonymous
 
 /*
@@ -458,7 +471,8 @@ AESDK_OpenGL_EffectRenderData::AESDK_OpenGL_EffectRenderData() :
 	visualShaderProgram(0),
 	mOutputFrameTexture(0),
 	vao(0),
-	quad(0)
+	vertBuffer(0),
+	waveBuffer(0)
 {
 }
 
@@ -488,7 +502,8 @@ AESDK_OpenGL_EffectRenderData::~AESDK_OpenGL_EffectRenderData()
 	}
 
 	if (vao) {
-		glDeleteBuffers(1, &quad);
+		glDeleteBuffers(1, &vertBuffer);
+		glDeleteBuffers(1, &waveBuffer);
 		glDeleteVertexArrays(1, &vao);
 	}
 
@@ -537,7 +552,11 @@ void AESDK_OpenGL_Shutdown(AESDK_OpenGL_EffectCommonData& inData)
 /*
 ** OpenGL resource loading
 */
-void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short inBufferWidth, u_short inBufferHeight, const std::string& resourcePath)
+void AESDK_OpenGL_InitResources(
+	AESDK_OpenGL_EffectRenderData& inData,
+	u_short inBufferWidth,
+	u_short inBufferHeight,
+	const std::string& resourcePath)
 {
 	bool sizeChangedB = inData.mRenderBufferWidthSu != inBufferWidth || inData.mRenderBufferHeightSu != inBufferHeight;
 	
@@ -563,20 +582,20 @@ void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short i
 		}
 
 		if (inData.vao) {
-			glDeleteBuffers(1, &inData.quad);
+			glDeleteBuffers(1, &inData.vertBuffer);
+			glDeleteBuffers(1, &inData.waveBuffer);
 			glDeleteVertexArrays(1, &inData.vao);
-			inData.quad = 0;
 			inData.vao = 0;
+			inData.vertBuffer = 0;
+			inData.waveBuffer = 0;
 		}
 
 	}
 
 	if (inData.vao == 0) {
-		// create a quad
 		glGenVertexArrays(1, &inData.vao);
-		glBindVertexArray(inData.vao);
-		inData.quad = CreateQuad(inData.mRenderBufferWidthSu, inData.mRenderBufferHeightSu);
-		glBindVertexArray(0);
+		inData.vertBuffer = CreateVertexBuffer(inData.mRenderBufferWidthSu, inData.mRenderBufferHeightSu);
+		inData.waveBuffer = CreateWaveBuffer(1);
 	}
 
 	// Create a frame-buffer object and bind it...
@@ -671,9 +690,6 @@ gl::GLuint AESDK_OpenGL_InitComputeShader(std::string inComputeShaderFile)
 	GLuint programObjSu = glCreateProgram();
 	glAttachShader(programObjSu, computeShaderSu);
 
-	glBindAttribLocation(programObjSu, PositionSlot, "inVertex");
-	glBindAttribLocation(programObjSu, ColorSlot, "inColor");
-
 	// Link the program object
 	glLinkProgram(programObjSu);
 	glGetProgramiv(programObjSu, GL_LINK_STATUS, &linkedB);
@@ -766,6 +782,11 @@ gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::st
 
 	glBindAttribLocation(programObjSu, PositionSlot, "inVertex");
 	glBindAttribLocation(programObjSu, ColorSlot, "inColor");
+
+	// Set Geometry Shader properties
+	glProgramParameteri(programObjSu, GL_GEOMETRY_INPUT_TYPE, (gl::GLint)GL_POINTS);
+	glProgramParameteri(programObjSu, GL_GEOMETRY_OUTPUT_TYPE, (gl::GLint)GL_TRIANGLE_STRIP);
+	glProgramParameteri(programObjSu, GL_GEOMETRY_VERTICES_OUT, 14);
 
 	// Link the program object
 	glLinkProgram(programObjSu);

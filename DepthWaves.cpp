@@ -38,6 +38,8 @@
 
 #include "DepthWaves.h"
 
+#include "CameraTransform.h"
+
 #include "GL_base.h"
 #include "Smart_Utils.h"
 #include "AEFX_SuiteHelper.h"
@@ -102,14 +104,14 @@ namespace {
 	}
 #endif
 
-	void RenderQuad(GLuint vbo)
+	void DrawVertices(GLuint vertBuffer, GLsizei numVerts)
 	{
 		glEnableVertexAttribArray(PositionSlot);
 		glEnableVertexAttribArray(ColorSlot);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glVertexAttribPointer(PositionSlot, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(gl::GLfloat), 0);
-		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(gl::GLfloat), (void*)(3 * sizeof(gl::GLfloat)));
-		glDrawArrays(GL_POINTS, 0, 4);
+		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
+		glVertexAttribPointer(PositionSlot, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(gl::GLfloat)));
+		glDrawArrays(GL_POINTS, 0, numVerts);
 		glDisableVertexAttribArray(PositionSlot);
 		glDisableVertexAttribArray(ColorSlot);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -185,14 +187,16 @@ namespace {
 	}
 
 
-	gl::GLuint UploadTexture(AEGP_SuiteHandler& suites,					// >>
+	gl::GLuint UploadTexture(GLuint					 unit,				// >>
+							 AEGP_SuiteHandler& suites,					// >>
 							 PF_PixelFormat			format,				// >>
 							 PF_EffectWorld			*input_worldP,		// >>
 							 PF_EffectWorld			*output_worldP,		// >>
 							 PF_InData				*in_data,			// >>
 							 size_t& pixSizeOut,						// <<
 							 gl::GLenum& glFmtOut,						// <<
-							 float& multiplier16bitOut)					// <<
+							float& multiplier16bitOut)					// <<
+
 	{
 		// - upload to texture memory
 		// - we will convert on-the-fly from ARGB to RGBA, and also to pre-multiplied alpha,
@@ -203,9 +207,8 @@ namespace {
 		assert(nUnpackAlignment == 4);
 #endif
 
-		gl::GLuint inputFrameTexture;
-		glGenTextures(1, &inputFrameTexture);
-		glBindTexture(GL_TEXTURE_2D, inputFrameTexture);
+		gl::GLuint texture;
+		glGenTextures(1, &texture);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)GL_LINEAR);
@@ -214,7 +217,6 @@ namespace {
 
 		glTexImage2D(GL_TEXTURE_2D, 0, (GLint)GL_RGBA32F, input_worldP->width, input_worldP->height, 0, GL_RGBA, GL_FLOAT, nullptr);
 
-		multiplier16bitOut = 1.0f;
 		switch (format)
 		{
 		case PF_PixelFormat_ARGB128:
@@ -241,6 +243,7 @@ namespace {
 
 		case PF_PixelFormat_ARGB64:
 		{
+
 			glFmtOut = GL_UNSIGNED_SHORT;
 			pixSizeOut = sizeof(PF_Pixel16);
 			multiplier16bitOut = 65535.0f / 32768.0f;
@@ -254,6 +257,7 @@ namespace {
 
 		case PF_PixelFormat_ARGB32:
 		{
+
 			glFmtOut = GL_UNSIGNED_BYTE;
 			pixSizeOut = sizeof(PF_Pixel8);
 
@@ -271,10 +275,7 @@ namespace {
 
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-		//unbind all textures
-		glBindTexture(GL_TEXTURE_2D, 0);
-
-		return inputFrameTexture;
+		return texture;
 	}
 
 	void ReportIfErrorFramebuffer(PF_InData *in_data, PF_OutData *out_data)
@@ -312,7 +313,7 @@ namespace {
 
 		// render
 		glBindVertexArray(renderContext->vao);
-		RenderQuad(renderContext->quad);
+		//RenderQuad(renderContext->quad);
 		glBindVertexArray(0);
 
 		glUseProgram(0);
@@ -320,46 +321,68 @@ namespace {
 		glFlush();
 	}
 
+	void ComputeParticles(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
+						  gl::GLuint colorLayerTexture,
+						  A_long colorWidthL,
+						  A_long colorHeightL,
+						  gl::GLuint depthLayerTexture,
+						  A_long depthWidthL,
+						  A_long depthHeightL,
+						  float minDepth,
+						  float maxDepth,
+						  CameraTransform cameraTransform,
+						  float multiplier16bit)
+	{
+		GLuint program = renderContext->computeShaderProgram;
+		glUseProgram(program);
+
+		glBindImageTexture(0, colorLayerTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA);
+		glBindImageTexture(1, depthLayerTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, renderContext->vertBuffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, renderContext->waveBuffer);
+
+		GLuint u;
+
+		u = glGetUniformLocation(program, "minDepth");
+		glUniform1f(u, minDepth);
+
+		u = glGetUniformLocation(program, "maxDepth");
+		glUniform1f(u, maxDepth);
+		
+		u = glGetUniformLocation(program, "cameraRot");
+		glUniform3f(u, cameraTransform.rotation.x, cameraTransform.rotation.y, cameraTransform.rotation.z);
+
+		u = glGetUniformLocation(program, "cameraPos");
+		glUniform3f(u, cameraTransform.position.x, cameraTransform.position.y, cameraTransform.position.z);
+
+		u = glGetUniformLocation(program, "waveCount");
+		glUniform1i(u, 0);
+
+		glDispatchCompute(colorWidthL, colorHeightL, 1);
+		glUseProgram(0);
+
+	}
+
 	void RenderGL(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
-				  A_long widthL, A_long heightL,
-				  gl::GLuint		inputFrameTexture,
-				  PF_FpLong			sliderVal,
-				  float				multiplier16bit)
+				  A_long widthL,
+				  A_long heightL,
+				  float multiplier16bit)
 	{
 		// - make sure we blend correctly inside the framebuffer
 		// - even though we just cleared it, another effect may want to first
 		// draw some kind of background to blend with
 		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-		glBlendEquation(GL_FUNC_ADD);
 
-		// view matrix, mimic windows coordinates
-		vmath::Matrix4 ModelviewProjection = vmath::Matrix4::translation(vmath::Vector3(-1.0f, -1.0f, 0.0f)) *
-			vmath::Matrix4::scale(vmath::Vector3(2.0 / float(widthL), 2.0 / float(heightL), 1.0f));
-
-		glBindTexture(GL_TEXTURE_2D, inputFrameTexture);
-
-		glUseProgram(renderContext->computeShaderProgram);
-
-		// program uniforms
-		GLint location = glGetUniformLocation(renderContext->computeShaderProgram, "ModelviewProjection");
-		glUniformMatrix4fv(location, 1, GL_FALSE, (GLfloat*)&ModelviewProjection);
-		location = glGetUniformLocation(renderContext->computeShaderProgram, "sliderVal");
-		glUniform1f(location, sliderVal);
-		location = glGetUniformLocation(renderContext->computeShaderProgram, "multiplier16bit");
-		glUniform1f(location, multiplier16bit);
-
-		// Identify the texture to use and bind it to texture unit 0
-		AESDK_OpenGL_BindTextureToTarget(renderContext->computeShaderProgram, inputFrameTexture, std::string("videoTexture"));
+		glUseProgram(renderContext->visualShaderProgram);
 
 		// render
 		glBindVertexArray(renderContext->vao);
-		RenderQuad(renderContext->quad);
+
+		DrawVertices(renderContext->vertBuffer, widthL * heightL);
 		glBindVertexArray(0);
 
 		glUseProgram(0);
-		glDisable(GL_BLEND);
+		glDisable(GL_DEPTH_TEST);
 	}
 
 	void DownloadTexture(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
@@ -855,28 +878,52 @@ SmartRender(
 						err2 = PF_Err_NONE;
 
 	PF_EffectWorld		*input_worldP = NULL,
+						*depth_worldP = NULL,
 						*output_worldP = NULL;
 	PF_WorldSuite2		*wsP = NULL;
 	PF_PixelFormat		format = PF_PixelFormat_INVALID;
-	PF_FpLong			sliderVal = 0;
+	PF_FpLong			minDepth, maxDepth;
+
+	A_Matrix4			camera_matrix4;
+	A_short				image_plane_widthL = 0,
+						image_plane_heightL = 0;
+	A_FpLong			focal_lengthF = 0;
+	A_Time				comp_timeT = { 0, 1 };
+	AEGP_LayerH			camera_layerH = NULL;
+
 
 	AEGP_SuiteHandler suites(in_data->pica_basicP);
 
-	PF_ParamDef slider_param;
-	AEFX_CLR_STRUCT(slider_param);
+	PF_ParamDef minDepth_param,
+				maxDepth_param;
+
+	AEFX_CLR_STRUCT(minDepth_param);
 
 	ERR(PF_CHECKOUT_PARAM(in_data,
-		DepthWaves_EMITTER_IMPULSE,
+		DepthWaves_MIN_DEPTH,
 		in_data->current_time,
 		in_data->time_step,
 		in_data->time_scale,
-		&slider_param));
+		&minDepth_param));
+
+
+	AEFX_CLR_STRUCT(maxDepth_param);
+
+	ERR(PF_CHECKOUT_PARAM(in_data,
+		DepthWaves_MAX_DEPTH,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&maxDepth_param));
 
 	if (!err){
-		sliderVal = slider_param.u.fd.value / 100.0f;
+		minDepth = minDepth_param.u.fd.value;
+		maxDepth = maxDepth_param.u.fd.value;
 	}
 
 	ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref, DepthWaves_INPUT, &input_worldP)));
+
+	ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref, DepthWaves_DEPTHMAP_LAYER, &depth_worldP)));
 
 	ERR(extra->cb->checkout_output(in_data->effect_ref, &output_worldP));
 
@@ -886,6 +933,18 @@ SmartRender(
 		kPFWorldSuiteVersion2,
 		"Couldn't load suite.",
 		(void**)&wsP));
+
+	ERR(suites.PFInterfaceSuite1()->AEGP_ConvertEffectToCompTime(in_data->effect_ref,
+		in_data->current_time,
+		in_data->time_scale,
+		&comp_timeT));
+
+	ERR(suites.PFInterfaceSuite1()->AEGP_GetEffectCameraMatrix(in_data->effect_ref,
+		&comp_timeT,
+		&camera_matrix4,
+		&focal_lengthF,
+		&image_plane_widthL,
+		&image_plane_heightL));
 
 	if (!err){
 		try
@@ -909,8 +968,8 @@ SmartRender(
 			// - Example of using a OpenGL extension
 			bool hasGremedy = renderContext->mExtensions.find(gl::GLextension::GL_GREMEDY_frame_terminator) != renderContext->mExtensions.end();
 
-			A_long				widthL = input_worldP->width;
-			A_long				heightL = input_worldP->height;
+			A_long widthL = input_worldP->width;
+			A_long heightL = input_worldP->height;
 
 			//loading OpenGL resources
 			AESDK_OpenGL_InitResources(*renderContext.get(), widthL, heightL, S_ResourcePath);
@@ -921,7 +980,8 @@ SmartRender(
 			size_t pixSize;
 			gl::GLenum glFmt;
 			float multiplier16bit;
-			gl::GLuint inputFrameTexture = UploadTexture(suites, format, input_worldP, output_worldP, in_data, pixSize, glFmt, multiplier16bit);
+			gl::GLuint colorTexture = UploadTexture(0, suites, format, input_worldP, output_worldP, in_data, pixSize, glFmt, multiplier16bit);
+			gl::GLuint depthTexture = UploadTexture(1, suites, format, depth_worldP, output_worldP, in_data, pixSize, glFmt, multiplier16bit);
 			
 			// Set up the frame-buffer object just like a window.
 			AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), renderContext->mOutputFrameTexture);
@@ -931,18 +991,28 @@ SmartRender(
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
-			// - simply blend the texture inside the frame buffer
-			// - TODO: hack your own shader there
-			RenderGL(renderContext, widthL, heightL, inputFrameTexture, sliderVal, multiplier16bit);
+			/*** Compute Particles ***/
+			// Get Camera Transform
+
+			gl::GLvec3f position(0.f, 0.f, -focal_lengthF);
+			gl::GLvec3f rotation(0.f, 0.f, 0.f);
+			gl::GLvec2f fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF));
+			CameraTransform camera_transform(position, rotation, fieldOfView);
+			
+			//ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, camera_transform, multiplier16bit);
+
+
+			// Render
+			//RenderGL(renderContext, widthL, heightL, multiplier16bit);
 
 			// - we toggle PBO textures (we use the PBO we just created as an input)
-			AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), inputFrameTexture);
+			AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);
 			ReportIfErrorFramebuffer(in_data, out_data);
 
 			glClear(GL_COLOR_BUFFER_BIT);
 
 			// swizzle using the previous output
-			SwizzleGL(renderContext, widthL, heightL, renderContext->mOutputFrameTexture, multiplier16bit);
+			// SwizzleGL(renderContext, widthL, heightL, renderContext->mOutputFrameTexture, multiplier16bit);
 
 			if (hasGremedy) {
 				gl::glFrameTerminatorGREMEDY();
@@ -954,7 +1024,8 @@ SmartRender(
 
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glBindTexture(GL_TEXTURE_2D, 0);
-			glDeleteTextures(1, &inputFrameTexture);
+			glDeleteTextures(1, &colorTexture);
+			glDeleteTextures(1, &depthTexture);
 		}
 		catch (PF_Err& thrown_err)
 		{
@@ -976,8 +1047,12 @@ SmartRender(
 		kPFWorldSuite,
 		kPFWorldSuiteVersion2,
 		"Couldn't release suite."));
-	ERR2(PF_CHECKIN_PARAM(in_data, &slider_param));
+
+	ERR2(PF_CHECKIN_PARAM(in_data, &minDepth_param));
+	ERR2(PF_CHECKIN_PARAM(in_data, &maxDepth_param));
+	
 	ERR2(extra->cb->checkin_layer_pixels(in_data->effect_ref, DepthWaves_INPUT));
+	ERR2(extra->cb->checkin_layer_pixels(in_data->effect_ref, DepthWaves_DEPTHMAP_LAYER));
 
 	return err;
 }

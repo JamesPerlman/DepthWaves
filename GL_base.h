@@ -62,7 +62,7 @@ This plugin is kept only for reference.
 	#define THREAD_LOCAL __thread
 #endif
 
-// OpenGL 3.3 bindings (see https://github.com/hpicgs/glbinding)
+// OpenGL 4.5 bindings (see https://github.com/hpicgs/glbinding)
 #include "glbinding/gl45core/gl.h"
 
 #ifdef AE_OS_MAC
@@ -157,7 +157,6 @@ struct AESDK_OpenGL_EffectRenderData : public AESDK_OpenGL_EffectCommonData
 	gl::GLuint mOutputFrameTexture; //pbo texture
 
 	gl::GLuint vao;
-	gl::GLuint quad;
 	gl::GLuint vertBuffer;
 	gl::GLuint waveBuffer;
 };

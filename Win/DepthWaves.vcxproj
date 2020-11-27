@@ -429,6 +429,7 @@ cl /D "MSWindows" /EP $(IntDir)%(Filename).rrc &gt;               "$(ProjectDir)
     <ClInclude Include="..\..\..\Headers\PF_Masks.h" />
     <ClInclude Include="..\..\..\Util\String_Utils.h" />
     <ClInclude Include="..\vmath.hpp" />
+    <ClInclude Include="gl_plus.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Util\AEFX_SuiteHelper.c" />
@@ -464,6 +465,7 @@ cl /D "MSWindows" /EP $(IntDir)%(Filename).rrc &gt;               "$(ProjectDir)
     <ClCompile Include="..\GL_base.cpp" />
     <ClCompile Include="..\DepthWaves_Strings.cpp" />
     <ClCompile Include="..\..\..\Util\MissingSuiteError.cpp" />
+    <ClCompile Include="CameraTransform.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\GLSL_files\render-blocks.geom">
