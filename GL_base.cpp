@@ -339,7 +339,7 @@ namespace AESDK_OpenGL
 
 			GLuint vbo;
 			glGenBuffers(1, &vbo);
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, vbo);
 			glBufferData(GL_ARRAY_BUFFER, bufferSize, verts, GL_DYNAMIC_DRAW);
 
 			free(verts);
@@ -355,7 +355,7 @@ namespace AESDK_OpenGL
 
 			GLuint vbo;
 			glGenBuffers(1, &vbo);
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo);
 			glBufferData(GL_ARRAY_BUFFER, bufferSize, waves, GL_DYNAMIC_DRAW);
 
 			free(waves);
@@ -668,8 +668,8 @@ gl::GLuint AESDK_OpenGL_InitComputeShader(std::string inComputeShaderFile)
 
 	GLuint computeShaderSu = glCreateShader(GL_COMPUTE_SHADER);
 
-	unsigned char *computeShaderAssemblyP = NULL;
-	if ((computeShaderAssemblyP = ReadShaderFile(inComputeShaderFile)) == NULL)
+	unsigned char *computeShaderAssemblyP = ReadShaderFile(inComputeShaderFile);
+	if (computeShaderAssemblyP == NULL)
 	{
 		GL_CHECK(AESDK_OpenGL_ShaderInit_Err);
 	}
@@ -717,12 +717,12 @@ gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::st
 	GLint geomCompiledB;
 	GLint fragCompiledB;
 	GLint linkedB;
-	    
+
 	// Create the vertex shader...
 	GLuint vertexShaderSu = glCreateShader(GL_VERTEX_SHADER);
 
-	unsigned char* vertexShaderAssemblyP = NULL;
-	if ((vertexShaderAssemblyP = ReadShaderFile(inVertexShaderFile)) == NULL) {
+	unsigned char* vertexShaderAssemblyP = ReadShaderFile(inVertexShaderFile);
+	if (vertexShaderAssemblyP == NULL) {
 		GL_CHECK(AESDK_OpenGL_ShaderInit_Err);
 	}
 
@@ -733,17 +733,18 @@ gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::st
 
 	glGetShaderiv(vertexShaderSu, GL_COMPILE_STATUS, &vertCompiledB);
 	char str[4096];
-	if(!vertCompiledB) {
+	if (!vertCompiledB) {
 		glGetShaderInfoLog(vertexShaderSu, sizeof(str), NULL, str);
 		GL_CHECK(AESDK_OpenGL_ShaderInit_Err);
 	}
 
 	// Create the geometry shader...
-	GLuint geometryShaderSu = glCreateShader(GL_FRAGMENT_SHADER);
+	GLuint geometryShaderSu = glCreateShader(GL_GEOMETRY_SHADER);
 
-	unsigned char* geometryShaderAssemblyP = NULL;
-	if ((geometryShaderAssemblyP = ReadShaderFile(inGeometryShaderFile)) == NULL)
+	unsigned char* geometryShaderAssemblyP = ReadShaderFile(inGeometryShaderFile);
+	if (geometryShaderAssemblyP == NULL) {
 		GL_CHECK(AESDK_OpenGL_ShaderInit_Err);
+	}
 
 	geometryShaderStringsP[0] = (char*)geometryShaderAssemblyP;
 	glShaderSource(geometryShaderSu, 1, geometryShaderStringsP, NULL);
@@ -759,8 +760,8 @@ gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::st
 	// Create the fragment shader...
 	GLuint fragmentShaderSu = glCreateShader(GL_FRAGMENT_SHADER);
 
-	unsigned char* fragmentShaderAssemblyP = NULL;
-	if((fragmentShaderAssemblyP = ReadShaderFile( inFragmentShaderFile )) == NULL)
+	unsigned char* fragmentShaderAssemblyP = ReadShaderFile(inFragmentShaderFile);
+	if(fragmentShaderAssemblyP == NULL)
 		GL_CHECK(AESDK_OpenGL_ShaderInit_Err);
 
 	fragmentShaderStringsP[0] = (char*)fragmentShaderAssemblyP;
@@ -885,7 +886,7 @@ unsigned char *ReadShaderFile(std::string inFilename)
 		fseek(fileP, 0L, SEEK_END);
 		int32_t fileLength = ftell( fileP);
 		rewind(fileP);
-		bufferP = new unsigned char[fileLength];
+		bufferP = new unsigned char[fileLength + 1];
 		int32_t bytes = static_cast<int32_t>(fread( bufferP, 1, fileLength, fileP ));
 		bufferP[bytes] = 0;
 

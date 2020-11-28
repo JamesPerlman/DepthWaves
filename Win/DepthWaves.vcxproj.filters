@@ -240,15 +240,13 @@
     <CustomBuild Include="..\GLSL_files\render-blocks.frag">
       <Filter>GLSL files</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\GLSL_files\compute-particles.glsl">
+      <Filter>GLSL files</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DepthWavesPiPL.rc">
       <Filter>Resources</Filter>
     </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\GLSL_files\compute-particles.glsl">
-      <Filter>GLSL files</Filter>
-    </None>
   </ItemGroup>
 </Project>

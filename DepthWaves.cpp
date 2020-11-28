@@ -997,13 +997,13 @@ SmartRender(
 			gl::GLvec3f position(0.f, 0.f, -focal_lengthF);
 			gl::GLvec3f rotation(0.f, 0.f, 0.f);
 			gl::GLvec2f fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF));
-			CameraTransform camera_transform(position, rotation, fieldOfView);
+			CameraTransform cameraTransform(position, rotation, fieldOfView);
 			
-			//ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, camera_transform, multiplier16bit);
+			//ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, cameraTransform, multiplier16bit);
 
 
 			// Render
-			//RenderGL(renderContext, widthL, heightL, multiplier16bit);
+			RenderGL(renderContext, widthL, heightL, multiplier16bit);
 
 			// - we toggle PBO textures (we use the PBO we just created as an input)
 			AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);
@@ -1019,8 +1019,7 @@ SmartRender(
 			}
 
 			// - get back to CPU the result, and inside the output world
-			DownloadTexture(renderContext, suites, input_worldP, output_worldP, in_data,
-				format, pixSize, glFmt);
+			DownloadTexture(renderContext, suites, input_worldP, output_worldP, in_data, format, pixSize, glFmt);
 
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glBindTexture(GL_TEXTURE_2D, 0);

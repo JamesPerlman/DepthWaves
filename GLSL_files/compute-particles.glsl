@@ -2,7 +2,7 @@
 #define M_PI 3.1415926535897932384626433832795
 
 struct Vertex {
-	vec4 pos;
+	vec3 pos;
 	vec4 color;
 };
 
@@ -90,7 +90,7 @@ mat4 rotation( in vec3 angles ) {
 	return rotationZ(angles.z) * rotationY(angles.y) * rotationX(angles.x);
 }
 
-vec4 getWorldPosition()
+vec3 getWorldPosition()
 {
 	vec2 uv = vec2(gl_GlobalInvocationID.xy) / vec2(imageSize(depthTex));
 
@@ -106,7 +106,7 @@ vec4 getWorldPosition()
 
 	mat4 m = rotation(-cameraRot);
 
-	return vec4(cameraPos + (m * vec4(pos.xyz, 1.0)).xyz, 1.0);
+	return cameraPos + (m * vec4(pos.xyz, 1.0)).xyz;
 }
 
 void main()
@@ -115,7 +115,7 @@ void main()
 	vec2 colorSizef = vec2(imageSize(colorTex));
 
 	// Step 1: Get point in space where particle is supposed to be
-	vec4 point = getWorldPosition();
+	vec3 point = getWorldPosition();
 	ivec2 px = ivec2(vec2(gl_GlobalInvocationID.xy) / depthSizef * colorSizef);
 
 	// Step 2: Displace point from waves
@@ -130,7 +130,7 @@ void main()
 		float k = c * c;
 
 		float r2 = w[i].amplitude * k;
-		point += vec4(r2 * normalize(d), 0.0);
+		point += r2 * normalize(d);
 	}
 	
 	// Set vertex coordinate

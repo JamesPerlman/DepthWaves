@@ -1,4 +1,4 @@
-#version 440
+#version 450
 #extension GL_EXT_geometry_shader4 : enable
 #extension GL_ARB_separate_shader_objects : enable
 
