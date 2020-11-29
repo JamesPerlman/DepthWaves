@@ -2,12 +2,12 @@
 #define M_PI 3.1415926535897932384626433832795
 
 struct Vertex {
-	vec3 pos;
+	vec4 pos;
 	vec4 color;
 };
 
 struct Wave {
-	vec3 pos;
+	vec4 pos;
 	float outerRadius;
 	float innerRadius;
 	float amplitude;
@@ -106,7 +106,7 @@ vec3 getWorldPosition()
 
 	mat4 m = rotation(-cameraRot);
 
-	return cameraPos + (m * vec4(pos.xyz, 1.0)).xyz;
+	return cameraPos + (m * vec4(pos, 1.0)).xyz;
 }
 
 void main()
@@ -121,7 +121,7 @@ void main()
 	// Step 2: Displace point from waves
 	for (int i = 0; i < waveCount; ++i)
 	{
-		vec3 d = point.xyz - w[i].pos;
+		vec3 d = point.xyz - w[i].pos.xyz;
 		float ir = w[i].innerRadius;
 		float or = w[i].outerRadius;
 		float r = clamp(length(d), ir, or);
@@ -135,6 +135,6 @@ void main()
 	
 	// Set vertex coordinate
 	uint idx = 384 * gl_GlobalInvocationID.x + gl_GlobalInvocationID.y;
-	v[idx].pos = point;
+	v[idx].pos = vec4(point, 1.0);
 	v[idx].color = imageLoad(colorTex, px);
 }

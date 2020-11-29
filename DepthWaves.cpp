@@ -109,8 +109,8 @@ namespace {
 		glEnableVertexAttribArray(PositionSlot);
 		glEnableVertexAttribArray(ColorSlot);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glVertexAttribPointer(PositionSlot, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(gl::GLfloat)));
+		glVertexAttribPointer(PositionSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(4 * sizeof(gl::GLfloat)));
 		glDrawArrays(GL_POINTS, 0, numVerts);
 		glDisableVertexAttribArray(PositionSlot);
 		glDisableVertexAttribArray(ColorSlot);
@@ -374,7 +374,6 @@ namespace {
 		glEnable(GL_DEPTH_TEST);
 
 		glUseProgram(renderContext->visualShaderProgram);
-
 		// render
 		glBindVertexArray(renderContext->vao);
 
@@ -999,17 +998,17 @@ SmartRender(
 			gl::GLvec2f fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF));
 			CameraTransform cameraTransform(position, rotation, fieldOfView);
 			
-			//ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, cameraTransform, multiplier16bit);
+			ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, cameraTransform, multiplier16bit);
 
-
-			// Render
+			glClear(GL_COLOR_BUFFER_BIT);
 			RenderGL(renderContext, widthL, heightL, multiplier16bit);
+
+
 
 			// - we toggle PBO textures (we use the PBO we just created as an input)
 			AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);
 			ReportIfErrorFramebuffer(in_data, out_data);
 
-			glClear(GL_COLOR_BUFFER_BIT);
 
 			// swizzle using the previous output
 			// SwizzleGL(renderContext, widthL, heightL, renderContext->mOutputFrameTexture, multiplier16bit);

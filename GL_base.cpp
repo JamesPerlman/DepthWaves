@@ -301,11 +301,11 @@ namespace AESDK_OpenGL
 				#define WGL_CONTEXT_MINOR_VERSION_ARB 0x2092
 				#endif
 
-				// create an OpenGL 3.3 context
+				// create an OpenGL 4.5 context
 				int attribList[] =
 				{
-					WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-					WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+					WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
+					WGL_CONTEXT_MINOR_VERSION_ARB, 5,
 					//WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB | WGL_CONTEXT_DEBUG_BIT_ARB,
 					//WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
 					//WGL_CONTEXT_DEBUG_BIT_ARB
@@ -334,15 +334,15 @@ namespace AESDK_OpenGL
 		// Allocate vertex buffer
 		GLuint CreateVertexBuffer(u_int16 widthL, u_int16 heightL)
 		{
-			size_t bufferSize = widthL * heightL * sizeof(Vertex);
-			Vertex *verts = (Vertex*)malloc(bufferSize);
+			size_t bufferLen = widthL * heightL;
+			Vertex *verts = new Vertex[bufferLen];
 
 			GLuint vbo;
 			glGenBuffers(1, &vbo);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, vbo);
-			glBufferData(GL_ARRAY_BUFFER, bufferSize, verts, GL_DYNAMIC_DRAW);
+			glNamedBufferData(vbo, bufferLen * sizeof(Vertex), verts, GL_DYNAMIC_DRAW);
 
-			free(verts);
+			delete[] verts;
 
 			return vbo;
 		}
@@ -350,15 +350,14 @@ namespace AESDK_OpenGL
 		// Allocate wave buffer
 		GLuint CreateWaveBuffer(u_int16 waveCountL)
 		{
-			size_t bufferSize = waveCountL * sizeof(Wave);
-			Wave *waves = (Wave*)malloc(bufferSize);
+			Wave *waves = new Wave[waveCountL];
 
 			GLuint vbo;
 			glGenBuffers(1, &vbo);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo);
-			glBufferData(GL_ARRAY_BUFFER, bufferSize, waves, GL_DYNAMIC_DRAW);
+			glNamedBufferData(vbo, waveCountL * sizeof(Wave), waves, GL_DYNAMIC_DRAW);
 
-			free(waves);
+			delete[] waves;
 
 			return vbo;
 		}

@@ -115,17 +115,19 @@ struct AESDK_OpenGL_EffectCommonData
 };
 
 struct Vertex {
-	gl::GLfloat pos[3];
+	gl::GLfloat pos[4];
 	gl::GLfloat color[4];
 };
 
 struct Wave {
-	gl::GLfloat pos[3];
+	gl::GLfloat pos[4];
 	gl::GLfloat outerRadius, innerRadius, amplitude, velocity, decay;
+
+	Wave() : pos(), outerRadius(), innerRadius(), amplitude(), velocity(), decay() {};
 	
-	Wave(gl::GLfloat pos[3], gl::GLfloat outerRadius, gl::GLfloat innerRadius, gl::GLfloat amplitude, gl::GLfloat velocity, gl::GLfloat decay)
+	Wave(gl::GLfloat pos[4], gl::GLfloat outerRadius, gl::GLfloat innerRadius, gl::GLfloat amplitude, gl::GLfloat velocity, gl::GLfloat decay)
 	{
-		memcpy(this->pos, pos, 3 * sizeof(gl::GLfloat));
+		memcpy(this->pos, pos, 4 * sizeof(gl::GLfloat));
 		this->outerRadius = outerRadius;
 		this->innerRadius = innerRadius;
 		this->amplitude = amplitude;
@@ -175,7 +177,10 @@ enum AESDK_OpenGL_Err
 	AESDK_OpenGL_Unknown_Err
 };
 
-enum { PositionSlot, ColorSlot };
+enum {
+	PositionSlot = 0,
+	ColorSlot
+};
 
 /*
 // Core functions
