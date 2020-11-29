@@ -15,8 +15,8 @@ struct Wave {
 	float decay;
 };
 
-layout(binding = 0, rgba8) uniform readonly image2D colorTex;
-layout(binding = 1, rgba8) uniform readonly image2D depthTex;
+layout(binding = 0, rgba32f) uniform readonly image2D colorTex;
+layout(binding = 1, rgba32f) uniform readonly image2D depthTex;
 
 layout(std430, binding = 2) buffer vertex {
 	Vertex v[];

@@ -188,14 +188,14 @@ namespace {
 
 
 	gl::GLuint UploadTexture(GLuint					 unit,				// >>
-							 AEGP_SuiteHandler& suites,					// >>
+							 AEGP_SuiteHandler&		suites,				// >>
 							 PF_PixelFormat			format,				// >>
 							 PF_EffectWorld			*input_worldP,		// >>
 							 PF_EffectWorld			*output_worldP,		// >>
 							 PF_InData				*in_data,			// >>
 							 size_t& pixSizeOut,						// <<
 							 gl::GLenum& glFmtOut,						// <<
-							float& multiplier16bitOut)					// <<
+							 float& multiplier16bitOut)					// <<
 
 	{
 		// - upload to texture memory
@@ -209,6 +209,7 @@ namespace {
 
 		gl::GLuint texture;
 		glGenTextures(1, &texture);
+		glBindTexture(GL_TEXTURE_2D, texture);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)GL_LINEAR);
@@ -237,13 +238,12 @@ namespace {
 				output_worldP));
 
 			glPixelStorei(GL_UNPACK_ROW_LENGTH, input_worldP->width);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, input_worldP->width, input_worldP->height, GL_RGBA, GL_FLOAT, bufferFloat.get());
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, input_worldP->width, input_worldP->height, GL_RGBA, glFmtOut, bufferFloat.get());
 			break;
 		}
 
 		case PF_PixelFormat_ARGB64:
 		{
-
 			glFmtOut = GL_UNSIGNED_SHORT;
 			pixSizeOut = sizeof(PF_Pixel16);
 			multiplier16bitOut = 65535.0f / 32768.0f;
@@ -251,7 +251,7 @@ namespace {
 			glPixelStorei(GL_UNPACK_ROW_LENGTH, input_worldP->rowbytes / sizeof(PF_Pixel16));
 			PF_Pixel16 *pixelDataStart = NULL;
 			PF_GET_PIXEL_DATA16(input_worldP, NULL, &pixelDataStart);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, input_worldP->width, input_worldP->height, GL_RGBA, GL_UNSIGNED_SHORT, pixelDataStart);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, input_worldP->width, input_worldP->height, GL_RGBA, glFmtOut, pixelDataStart);
 			break;
 		}
 
@@ -264,7 +264,7 @@ namespace {
 			glPixelStorei(GL_UNPACK_ROW_LENGTH, input_worldP->rowbytes / sizeof(PF_Pixel8));
 			PF_Pixel8 *pixelDataStart = NULL;
 			PF_GET_PIXEL_DATA8(input_worldP, NULL, &pixelDataStart);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, input_worldP->width, input_worldP->height, GL_RGBA, GL_UNSIGNED_BYTE, pixelDataStart);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, input_worldP->width, input_worldP->height, GL_RGBA, glFmtOut, pixelDataStart);
 			break;
 		}
 
@@ -274,6 +274,7 @@ namespace {
 		}
 
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+		glBindTexture(GL_TEXTURE_2D, 0);
 
 		return texture;
 	}
@@ -288,37 +289,6 @@ namespace {
 			PF_SPRINTF(out_data->return_msg, error_msg.c_str());
 			CHECK(PF_Err_OUT_OF_MEMORY);
 		}
-	}
-
-
-	void SwizzleGL(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
-				   A_long widthL, A_long heightL,
-				   gl::GLuint		inputFrameTexture,
-				   float			multiplier16bit)
-	{
-		glBindTexture(GL_TEXTURE_2D, inputFrameTexture);
-
-		glUseProgram(renderContext->visualShaderProgram);
-
-		// view matrix, mimic windows coordinates
-		vmath::Matrix4 ModelviewProjection = vmath::Matrix4::translation(vmath::Vector3(-1.0f, -1.0f, 0.0f)) *
-			vmath::Matrix4::scale(vmath::Vector3(2.0 / float(widthL), 2.0 / float(heightL), 1.0f));
-
-		GLint location = glGetUniformLocation(renderContext->visualShaderProgram, "ModelviewProjection");
-		glUniformMatrix4fv(location, 1, GL_FALSE, (GLfloat*)&ModelviewProjection);
-		location = glGetUniformLocation(renderContext->visualShaderProgram, "multiplier16bit");
-		glUniform1f(location, multiplier16bit);
-
-		AESDK_OpenGL_BindTextureToTarget(renderContext->visualShaderProgram, inputFrameTexture, std::string("videoTexture"));
-
-		// render
-		glBindVertexArray(renderContext->vao);
-		//RenderQuad(renderContext->quad);
-		glBindVertexArray(0);
-
-		glUseProgram(0);
-
-		glFlush();
 	}
 
 	void ComputeParticles(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
@@ -336,8 +306,8 @@ namespace {
 		GLuint program = renderContext->computeShaderProgram;
 		glUseProgram(program);
 
-		glBindImageTexture(0, colorLayerTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA);
-		glBindImageTexture(1, depthLayerTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA);
+		glBindImageTexture(0, colorLayerTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+		glBindImageTexture(1, depthLayerTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, renderContext->vertBuffer);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, renderContext->waveBuffer);
 
@@ -916,8 +886,8 @@ SmartRender(
 		&maxDepth_param));
 
 	if (!err){
-		minDepth = minDepth_param.u.fd.value;
-		maxDepth = maxDepth_param.u.fd.value;
+		minDepth = minDepth_param.u.fs_d.value;
+		maxDepth = maxDepth_param.u.fs_d.value;
 	}
 
 	ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref, DepthWaves_INPUT, &input_worldP)));
@@ -1000,18 +970,18 @@ SmartRender(
 			
 			ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, cameraTransform, multiplier16bit);
 
-			glClear(GL_COLOR_BUFFER_BIT);
+			Vertex *data = new Vertex[widthL * heightL];
+			glGetNamedBufferSubData(renderContext->vertBuffer, 0, widthL * heightL * sizeof(Vertex), data);
+
 			RenderGL(renderContext, widthL, heightL, multiplier16bit);
 
-
+			delete[] data;
 
 			// - we toggle PBO textures (we use the PBO we just created as an input)
 			AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);
 			ReportIfErrorFramebuffer(in_data, out_data);
 
 
-			// swizzle using the previous output
-			// SwizzleGL(renderContext, widthL, heightL, renderContext->mOutputFrameTexture, multiplier16bit);
 
 			if (hasGremedy) {
 				gl::glFrameTerminatorGREMEDY();
@@ -1021,7 +991,7 @@ SmartRender(
 			DownloadTexture(renderContext, suites, input_worldP, output_worldP, in_data, format, pixSize, glFmt);
 
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			glBindTexture(GL_TEXTURE_2D, 0);
+
 			glDeleteTextures(1, &colorTexture);
 			glDeleteTextures(1, &depthTexture);
 		}
