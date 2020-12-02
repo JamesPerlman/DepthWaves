@@ -35,8 +35,13 @@ uniform int waveCount;
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
+float getDepth(ivec2 inPos) {
+
+	return imageLoad(depthTex, inPos).g;
+}
+
 // apply 5x5 convolution kernel to smooth depth edges
-float getSmoothedDepth()
+float getSmoothedDepth(ivec2 inPos)
 {
 	float kernel[5][5] = {
 		{ 1,  4,  6,  4, 1 },
@@ -56,9 +61,9 @@ float getSmoothedDepth()
 	{
 		for (int j = 0; j < 5; ++j)
 		{
-			ivec2 pos = ivec2(gl_GlobalInvocationID.xy) - 2 + ivec2(i, j);
+			ivec2 pos = inPos - 2 + ivec2(i, j);
 			pos = clamp(pos, minPos, maxPos);
-			depth += kernel[i][j] * imageLoad(depthTex, pos).r;
+			depth += kernel[i][j] * getDepth(pos);
 		}
 	}
 
@@ -94,7 +99,7 @@ vec3 getWorldPosition()
 {
 	vec2 uv = vec2(gl_GlobalInvocationID.xy) / vec2(imageSize(depthTex));
 
-	float d = getSmoothedDepth();
+	float d = getDepth(ivec2(gl_GlobalInvocationID.xy));
 
 	float zCam = (minDepth + d * (maxDepth - minDepth));
 
@@ -111,8 +116,9 @@ vec3 getWorldPosition()
 
 void main()
 {
+	ivec2 colorImageSize = imageSize(colorTex);
 	vec2 depthSizef = vec2(imageSize(depthTex));
-	vec2 colorSizef = vec2(imageSize(colorTex));
+	vec2 colorSizef = vec2(colorImageSize);
 
 	// Step 1: Get point in space where particle is supposed to be
 	vec3 point = getWorldPosition();
@@ -134,7 +140,7 @@ void main()
 	}
 	
 	// Set vertex coordinate
-	uint idx = 384 * gl_GlobalInvocationID.x + gl_GlobalInvocationID.y;
+	uint idx = colorImageSize.y * gl_GlobalInvocationID.x + gl_GlobalInvocationID.y;
 	v[idx].pos = vec4(point, 1.0);
 	v[idx].color = imageLoad(colorTex, px);
 }

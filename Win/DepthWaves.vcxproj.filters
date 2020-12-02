@@ -121,9 +121,6 @@
     <ClInclude Include="..\DepthWaves_Strings.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="gl_plus.h">
-      <Filter>Data Types</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Util\AEGP_SuiteHandler.cpp">

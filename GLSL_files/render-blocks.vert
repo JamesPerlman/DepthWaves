@@ -1,8 +1,7 @@
-#version 440
-#extension GL_ARB_separate_shader_objects : enable
+#version 450
 
 layout (location = 0) in vec4 inVertex;
-layout (location = 4) in vec4 inColor;
+layout (location = 1) in vec4 inColor;
 
 out vec4 vertColor;
 

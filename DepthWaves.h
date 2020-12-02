@@ -89,7 +89,7 @@ typedef float				fpshort;
 #define DepthWaves_WAVE_VELOCITY_DEFAULT		100.0
 #define DepthWaves_WAVE_DECAY_DEFAULT			0.95
 
-#define DepthWaves_DEPTH_SLIDER_MIN				0
+#define DepthWaves_DEPTH_SLIDER_MIN				-1000
 #define DepthWaves_DEPTH_SLIDER_MAX				1000
 #define DepthWaves_BLOCK_SIZE_SLIDER_MIN		0.001
 #define DepthWaves_BLOCK_SIZE_SLIDER_MAX		10.0

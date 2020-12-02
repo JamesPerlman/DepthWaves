@@ -109,8 +109,8 @@ namespace {
 		glEnableVertexAttribArray(PositionSlot);
 		glEnableVertexAttribArray(ColorSlot);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glVertexAttribPointer(PositionSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(4 * sizeof(gl::GLfloat)));
+		glVertexAttribPointer(PositionSlot, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
+		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(4 * sizeof(float)));
 		glDrawArrays(GL_POINTS, 0, numVerts);
 		glDisableVertexAttribArray(PositionSlot);
 		glDisableVertexAttribArray(ColorSlot);
@@ -206,6 +206,9 @@ namespace {
 		::glGetIntegerv(GL_UNPACK_ALIGNMENT, &nUnpackAlignment);
 		assert(nUnpackAlignment == 4);
 #endif
+		if (input_worldP == NULL) {
+			return 0;
+		}
 
 		gl::GLuint texture;
 		glGenTextures(1, &texture);
@@ -320,10 +323,13 @@ namespace {
 		glUniform1f(u, maxDepth);
 		
 		u = glGetUniformLocation(program, "cameraRot");
-		glUniform3f(u, cameraTransform.rotation.x, cameraTransform.rotation.y, cameraTransform.rotation.z);
+		glUniform3fv(u, 1, (gl::GLfloat*)&cameraTransform.rotation);
 
 		u = glGetUniformLocation(program, "cameraPos");
-		glUniform3f(u, cameraTransform.position.x, cameraTransform.position.y, cameraTransform.position.z);
+		glUniform3fv(u, 1, (gl::GLfloat*)&cameraTransform.position);
+
+		u = glGetUniformLocation(program, "cameraFov");
+		glUniform2fv(u, 1, (gl::GLfloat*)&cameraTransform.fov);
 
 		u = glGetUniformLocation(program, "waveCount");
 		glUniform1i(u, 0);
@@ -334,16 +340,31 @@ namespace {
 	}
 
 	void RenderGL(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
+				  gl::GLuint inputFrameTexture,
 				  A_long widthL,
 				  A_long heightL,
+				  PF_FpLong minBlockSize,
+				  vmath::Matrix4 projectionMatrix,
 				  float multiplier16bit)
 	{
-		// - make sure we blend correctly inside the framebuffer
-		// - even though we just cleared it, another effect may want to first
-		// draw some kind of background to blend with
+
+		gl::GLuint program = renderContext->visualShaderProgram;
+		GLuint u;
+
 		glEnable(GL_DEPTH_TEST);
 
-		glUseProgram(renderContext->visualShaderProgram);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendEquation(GL_FUNC_ADD);
+
+		// send uniforms to shader
+		glUseProgram(program);
+		u = glGetUniformLocation(program, "size");
+		glUniform1f(u, minBlockSize);
+
+		u = glGetUniformLocation(program, "modelViewProjectionMatrix");
+		glUniformMatrix4fv(u, 1, GL_FALSE, (gl::GLfloat*)&projectionMatrix);
+
 		// render
 		glBindVertexArray(renderContext->vao);
 
@@ -352,6 +373,7 @@ namespace {
 
 		glUseProgram(0);
 		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_BLEND);
 	}
 
 	void DownloadTexture(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
@@ -851,7 +873,8 @@ SmartRender(
 						*output_worldP = NULL;
 	PF_WorldSuite2		*wsP = NULL;
 	PF_PixelFormat		format = PF_PixelFormat_INVALID;
-	PF_FpLong			minDepth, maxDepth;
+	PF_FpLong			minDepth, maxDepth,
+						minBlockSize, maxBlockSize;
 
 	A_Matrix4			camera_matrix4;
 	A_short				image_plane_widthL = 0,
@@ -864,7 +887,8 @@ SmartRender(
 	AEGP_SuiteHandler suites(in_data->pica_basicP);
 
 	PF_ParamDef minDepth_param,
-				maxDepth_param;
+				maxDepth_param,
+				minBlockSize_param;
 
 	AEFX_CLR_STRUCT(minDepth_param);
 
@@ -885,9 +909,19 @@ SmartRender(
 		in_data->time_scale,
 		&maxDepth_param));
 
+	AEFX_CLR_STRUCT(minBlockSize_param);
+
+	ERR(PF_CHECKOUT_PARAM(in_data,
+		DepthWaves_MIN_BLOCK_SIZE,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&minBlockSize_param));
+
 	if (!err){
 		minDepth = minDepth_param.u.fs_d.value;
 		maxDepth = maxDepth_param.u.fs_d.value;
+		minBlockSize = minBlockSize_param.u.fs_d.value;
 	}
 
 	ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref, DepthWaves_INPUT, &input_worldP)));
@@ -963,25 +997,23 @@ SmartRender(
 			/*** Compute Particles ***/
 			// Get Camera Transform
 
-			gl::GLvec3f position(0.f, 0.f, -focal_lengthF);
-			gl::GLvec3f rotation(0.f, 0.f, 0.f);
-			gl::GLvec2f fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF));
-			CameraTransform cameraTransform(position, rotation, fieldOfView);
+			vmath::Vector3 position(0.f, 0.f, 0.f);
+			vmath::Vector3 rotation(0.f, 0.f, 0.f);
+			vmath::Vector3 fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF), 1.f);
+			CameraTransform cameraTransform(position, rotation, fieldOfView, focal_lengthF, minDepth, maxDepth);
 			
 			ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, cameraTransform, multiplier16bit);
 
 			Vertex *data = new Vertex[widthL * heightL];
 			glGetNamedBufferSubData(renderContext->vertBuffer, 0, widthL * heightL * sizeof(Vertex), data);
 
-			RenderGL(renderContext, widthL, heightL, multiplier16bit);
+			RenderGL(renderContext, renderContext->mOutputFrameTexture, widthL, heightL, minBlockSize, cameraTransform.projectionMatrix, multiplier16bit);
 
 			delete[] data;
 
 			// - we toggle PBO textures (we use the PBO we just created as an input)
-			AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);
-			ReportIfErrorFramebuffer(in_data, out_data);
-
-
+			// AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);
+			// ReportIfErrorFramebuffer(in_data, out_data);
 
 			if (hasGremedy) {
 				gl::glFrameTerminatorGREMEDY();
@@ -991,7 +1023,7 @@ SmartRender(
 			DownloadTexture(renderContext, suites, input_worldP, output_worldP, in_data, format, pixSize, glFmt);
 
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+			glBindTexture(GL_TEXTURE_2D, 0);
 			glDeleteTextures(1, &colorTexture);
 			glDeleteTextures(1, &depthTexture);
 		}
@@ -1018,6 +1050,7 @@ SmartRender(
 
 	ERR2(PF_CHECKIN_PARAM(in_data, &minDepth_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &maxDepth_param));
+	ERR2(PF_CHECKIN_PARAM(in_data, &minBlockSize_param));
 	
 	ERR2(extra->cb->checkin_layer_pixels(in_data->effect_ref, DepthWaves_INPUT));
 	ERR2(extra->cb->checkin_layer_pixels(in_data->effect_ref, DepthWaves_DEPTHMAP_LAYER));

@@ -463,7 +463,7 @@ void AESDK_OpenGL_EffectCommonData::SetPluginContext()
 
 AESDK_OpenGL_EffectRenderData::AESDK_OpenGL_EffectRenderData() :
 	mFrameBufferSu(0),
-	mColorRenderBufferSu(0),
+	mDepthRenderBufferSu(0),
 	mRenderBufferWidthSu(0),
 	mRenderBufferHeightSu(0),
 	computeShaderProgram(0),
@@ -496,8 +496,8 @@ AESDK_OpenGL_EffectRenderData::~AESDK_OpenGL_EffectRenderData()
 	if (mFrameBufferSu) {
 		glDeleteFramebuffers(1, &mFrameBufferSu);
 	}
-	if (mColorRenderBufferSu) {
-		glDeleteRenderbuffers(1, &mColorRenderBufferSu);
+	if (mDepthRenderBufferSu) {
+		glDeleteRenderbuffers(1, &mDepthRenderBufferSu);
 	}
 
 	if (vao) {
@@ -571,9 +571,9 @@ void AESDK_OpenGL_InitResources(
 			glDeleteFramebuffers(1, &inData.mFrameBufferSu);
 			inData.mFrameBufferSu = 0;
 		}
-		if (inData.mColorRenderBufferSu) {
-			glDeleteRenderbuffers(1, &inData.mColorRenderBufferSu);
-			inData.mColorRenderBufferSu = 0;
+		if (inData.mDepthRenderBufferSu) {
+			glDeleteRenderbuffers(1, &inData.mDepthRenderBufferSu);
+			inData.mDepthRenderBufferSu = 0;
 		}
 		if (inData.mOutputFrameTexture) {
 			glDeleteTextures(1, &inData.mOutputFrameTexture);
@@ -604,12 +604,12 @@ void AESDK_OpenGL_InitResources(
 		glBindFramebuffer(GL_FRAMEBUFFER, inData.mFrameBufferSu);
 	
 		//now create the color render buffer
-		glGenRenderbuffers(1, &inData.mColorRenderBufferSu);
-		glBindRenderbuffer(GL_RENDERBUFFER, inData.mColorRenderBufferSu);
-	
+		glGenRenderbuffers(1, &inData.mDepthRenderBufferSu);
+		glBindRenderbuffer(GL_RENDERBUFFER, inData.mDepthRenderBufferSu);
+
 		// attach renderbuffer to framebuffer
-		//glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, inData.mRenderBufferWidthSu, inData.mRenderBufferHeightSu);
-		//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, inData.mColorRenderBufferSu);
+		//glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, inData.mRenderBufferWidthSu, inData.mRenderBufferHeightSu);
+		//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, inData.mDepthRenderBufferSu);
 	}
 
 	//DepthWaves effect specific OpenGL resource loading
@@ -787,7 +787,7 @@ gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::st
 	glProgramParameteri(programObjSu, GL_GEOMETRY_INPUT_TYPE, (gl::GLint)GL_POINTS);
 	glProgramParameteri(programObjSu, GL_GEOMETRY_OUTPUT_TYPE, (gl::GLint)GL_TRIANGLE_STRIP);
 	glProgramParameteri(programObjSu, GL_GEOMETRY_VERTICES_OUT, 14);
-
+	
 	// Link the program object
 	glLinkProgram(programObjSu);
 	glGetProgramiv(programObjSu, GL_LINK_STATUS, &linkedB);

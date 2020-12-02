@@ -148,7 +148,7 @@ struct AESDK_OpenGL_EffectRenderData : public AESDK_OpenGL_EffectCommonData
 	virtual ~AESDK_OpenGL_EffectRenderData();
 
 	gl::GLuint mFrameBufferSu;
-	gl::GLuint mColorRenderBufferSu;
+	gl::GLuint mDepthRenderBufferSu;
 
 	u_int16 mRenderBufferWidthSu;
 	u_int16 mRenderBufferHeightSu;
