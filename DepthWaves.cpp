@@ -38,7 +38,7 @@
 
 #include "DepthWaves.h"
 
-#include "CameraTransform.h"
+#include "CameraTransform.hpp"
 
 #include "GL_base.h"
 #include "Smart_Utils.h"
@@ -363,7 +363,7 @@ namespace {
 		glUniform1f(u, minBlockSize);
 
 		u = glGetUniformLocation(program, "modelViewProjectionMatrix");
-		glUniformMatrix4fv(u, 1, GL_FALSE, (gl::GLfloat*)&projectionMatrix);
+		glUniformMatrix4fv(u, 1, GL_TRUE, (gl::GLfloat*)&projectionMatrix);
 
 		// render
 		glBindVertexArray(renderContext->vao);

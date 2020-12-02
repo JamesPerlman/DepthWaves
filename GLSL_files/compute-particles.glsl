@@ -101,7 +101,7 @@ vec3 getWorldPosition()
 
 	float d = getDepth(ivec2(gl_GlobalInvocationID.xy));
 
-	float zCam = (minDepth + d * (maxDepth - minDepth));
+	float zCam = -(maxDepth + d * (minDepth - maxDepth));
 
 	vec2 focalLen = 0.5f / tan(0.5f * cameraFov);
 
@@ -111,7 +111,7 @@ vec3 getWorldPosition()
 
 	mat4 m = rotation(-cameraRot);
 
-	return cameraPos + (m * vec4(pos, 1.0)).xyz;
+	return cameraPos + (m * vec4(-pos.xy, pos.z, 1.0)).xyz;
 }
 
 void main()

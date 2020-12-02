@@ -37,7 +37,7 @@ void main() {
 	for (int i = 0; i < 14; ++i)
 	{
 		vec3 p = vec3(cube[3 * i], cube[3 * i + 1], cube[3 * i + 2]) * size;
-		gl_Position = (center + vec4(p, 1.0));
+		gl_Position = modelViewProjectionMatrix * (center + vec4(p, 1.0));
 		EmitVertex();
 	}
 

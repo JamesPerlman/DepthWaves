@@ -464,7 +464,7 @@ cl /D "MSWindows" /EP $(IntDir)%(Filename).rrc &gt;               "$(ProjectDir)
     <ClCompile Include="..\GL_base.cpp" />
     <ClCompile Include="..\DepthWaves_Strings.cpp" />
     <ClCompile Include="..\..\..\Util\MissingSuiteError.cpp" />
-    <ClCompile Include="CameraTransform.h" />
+    <ClCompile Include="CameraTransform.hpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\GLSL_files\render-blocks.geom">

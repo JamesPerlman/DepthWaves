@@ -220,7 +220,7 @@
       <Filter>Supporting code</Filter>
     </ClCompile>
     <ClCompile Include="..\DepthWaves.cpp" />
-    <ClCompile Include="CameraTransform.h">
+    <ClCompile Include="CameraTransform.hpp">
       <Filter>Data Types</Filter>
     </ClCompile>
   </ItemGroup>
