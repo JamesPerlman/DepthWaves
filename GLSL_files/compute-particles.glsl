@@ -1,6 +1,8 @@
 #version 450
 #define M_PI 3.1415926535897932384626433832795
 
+vec2 uv = vec2(gl_GlobalInvocationID.xy) / vec2(gl_NumWorkGroups.xy);
+
 struct Vertex {
 	vec4 pos;
 	vec4 color;
@@ -97,9 +99,9 @@ mat4 rotation( in vec3 angles ) {
 
 vec3 getWorldPosition()
 {
-	vec2 uv = vec2(gl_GlobalInvocationID.xy) / vec2(imageSize(depthTex));
+	ivec2 depthImageSize = ivec2(imageSize(depthTex));
 
-	float d = getDepth(ivec2(gl_GlobalInvocationID.xy));
+	float d = getDepth(ivec2(uv * vec2(depthImageSize)));
 
 	float zCam = -(maxDepth + d * (minDepth - maxDepth));
 
@@ -116,13 +118,12 @@ vec3 getWorldPosition()
 
 void main()
 {
-	ivec2 colorImageSize = imageSize(colorTex);
 	vec2 depthSizef = vec2(imageSize(depthTex));
-	vec2 colorSizef = vec2(colorImageSize);
-
+	vec2 colorSizef = vec2(imageSize(colorTex));
+	
 	// Step 1: Get point in space where particle is supposed to be
 	vec3 point = getWorldPosition();
-	ivec2 px = ivec2(vec2(gl_GlobalInvocationID.xy) / depthSizef * colorSizef);
+	ivec2 px = ivec2(uv * colorSizef);
 
 	// Step 2: Displace point from waves
 	for (int i = 0; i < waveCount; ++i)
@@ -140,7 +141,7 @@ void main()
 	}
 	
 	// Set vertex coordinate
-	uint idx = colorImageSize.y * gl_GlobalInvocationID.x + gl_GlobalInvocationID.y;
+	uint idx = gl_NumWorkGroups.y * gl_GlobalInvocationID.x + gl_GlobalInvocationID.y;
 	v[idx].pos = vec4(point, 1.0);
 	v[idx].color = imageLoad(colorTex, px);
 }

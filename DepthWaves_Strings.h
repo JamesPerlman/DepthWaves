@@ -35,5 +35,7 @@ typedef enum {
 	StrID_Wave_Displacement_Slider_Name,
 	StrID_Wave_Velocity_Slider_Name,
 	StrID_Wave_Decay_Slider_Name,
+	StrID_Num_Blocks_X_Name,
+	StrID_Num_Blocks_Y_Name,
 	StrID_NUMTYPES
 } StrIDType;

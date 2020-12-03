@@ -332,15 +332,14 @@ namespace AESDK_OpenGL
 	#endif
 
 		// Allocate vertex buffer
-		GLuint CreateVertexBuffer(u_int16 widthL, u_int16 heightL)
+		GLuint CreateVertexBuffer(u_long numBlocks)
 		{
-			size_t bufferLen = widthL * heightL;
-			Vertex *verts = new Vertex[bufferLen];
+			Vertex *verts = new Vertex[numBlocks];
 
 			GLuint vbo;
 			glGenBuffers(1, &vbo);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, vbo);
-			glNamedBufferData(vbo, bufferLen * sizeof(Vertex), verts, GL_DYNAMIC_DRAW);
+			glNamedBufferData(vbo, numBlocks * sizeof(Vertex), verts, GL_DYNAMIC_DRAW);
 
 			delete[] verts;
 
@@ -555,14 +554,20 @@ void AESDK_OpenGL_InitResources(
 	AESDK_OpenGL_EffectRenderData& inData,
 	u_short inBufferWidth,
 	u_short inBufferHeight,
+	u_short numBlocksX,
+	u_short numBlocksY,
+	u_short numWaves,
 	const std::string& resourcePath)
 {
-	bool sizeChangedB = inData.mRenderBufferWidthSu != inBufferWidth || inData.mRenderBufferHeightSu != inBufferHeight;
-	
+	u_long numBlocks = (u_long)numBlocksX * (u_long)numBlocksY;
+	bool renderSizeChangedB = inData.mRenderBufferWidthSu != inBufferWidth || inData.mRenderBufferHeightSu != inBufferHeight;
+	bool numBlocksChangedB = inData.mNumBlocks != numBlocks;
+
 	inData.mRenderBufferWidthSu = inBufferWidth;
 	inData.mRenderBufferHeightSu = inBufferHeight;
+	inData.mNumBlocks = numBlocks;
 
-	if (sizeChangedB) {
+	if (renderSizeChangedB) {
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -579,22 +584,21 @@ void AESDK_OpenGL_InitResources(
 			glDeleteTextures(1, &inData.mOutputFrameTexture);
 			inData.mOutputFrameTexture = 0;
 		}
+	}
 
-		if (inData.vao) {
-			glDeleteBuffers(1, &inData.vertBuffer);
-			glDeleteBuffers(1, &inData.waveBuffer);
-			glDeleteVertexArrays(1, &inData.vao);
-			inData.vao = 0;
-			inData.vertBuffer = 0;
-			inData.waveBuffer = 0;
-		}
-
+	if (inData.vao && numBlocksChangedB) {
+		glDeleteVertexArrays(1, &inData.vao);
+		glDeleteBuffers(1, &inData.vertBuffer);
+		glDeleteBuffers(1, &inData.waveBuffer);
+		inData.vao = 0;
+		inData.vertBuffer = 0;
+		inData.waveBuffer = 0;
 	}
 
 	if (inData.vao == 0) {
 		glGenVertexArrays(1, &inData.vao);
-		inData.vertBuffer = CreateVertexBuffer(inData.mRenderBufferWidthSu, inData.mRenderBufferHeightSu);
 		inData.waveBuffer = CreateWaveBuffer(1);
+		inData.vertBuffer = CreateVertexBuffer(numBlocks);
 	}
 
 	// Create a frame-buffer object and bind it...
@@ -608,8 +612,8 @@ void AESDK_OpenGL_InitResources(
 		glBindRenderbuffer(GL_RENDERBUFFER, inData.mDepthRenderBufferSu);
 
 		// attach renderbuffer to framebuffer
-		//glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, inData.mRenderBufferWidthSu, inData.mRenderBufferHeightSu);
-		//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, inData.mDepthRenderBufferSu);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, inData.mRenderBufferWidthSu, inData.mRenderBufferHeightSu);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, inData.mDepthRenderBufferSu);
 	}
 
 	//DepthWaves effect specific OpenGL resource loading

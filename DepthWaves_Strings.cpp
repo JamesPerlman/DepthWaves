@@ -41,7 +41,9 @@ TableString		g_strs[StrID_NUMTYPES] = {
 	StrID_Max_Block_Size_Slider_Name,		"Maximum Block Size",
 	StrID_Wave_Displacement_Slider_Name,	"Wave Displacement",
 	StrID_Wave_Velocity_Slider_Name,		"Wave Velocity",
-	StrID_Wave_Decay_Slider_Name,			"Wave Decay"
+	StrID_Wave_Decay_Slider_Name,			"Wave Decay",
+	StrID_Num_Blocks_X_Name,				"Num Blocks (Horizontal)",
+	StrID_Num_Blocks_Y_Name,				"Num Blocks (Vertical)"
 };
 
 

@@ -152,6 +152,7 @@ struct AESDK_OpenGL_EffectRenderData : public AESDK_OpenGL_EffectCommonData
 
 	u_int16 mRenderBufferWidthSu;
 	u_int16 mRenderBufferHeightSu;
+	u_long mNumBlocks;
 
 	gl::GLuint computeShaderProgram;
 	gl::GLuint visualShaderProgram;
@@ -188,7 +189,7 @@ enum {
 void AESDK_OpenGL_Startup(AESDK_OpenGL_EffectCommonData& inData, const AESDK_OpenGL_EffectCommonData* inRootContext = nullptr);
 void AESDK_OpenGL_Shutdown(AESDK_OpenGL_EffectCommonData& inData);
 
-void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short inBufferWidth, u_short inBufferHeight, const std::string& resourcePath);
+void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short inBufferWidth, u_short inBufferHeight, u_short numBlocksX, u_short numBlocksY, u_short numWaves, const std::string& resourcePath);
 void AESDK_OpenGL_MakeReadyToRender(AESDK_OpenGL_EffectRenderData& inData, gl::GLuint textureHandle);
 gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::string inGeometryShaderFile, std::string inFragmentShaderFile);
 gl::GLuint AESDK_OpenGL_InitComputeShader(std::string inComputeShaderFile);

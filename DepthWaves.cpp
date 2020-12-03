@@ -295,12 +295,9 @@ namespace {
 	}
 
 	void ComputeParticles(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
+						  gl::GLuint numBlocksX, gl::GLuint numBlocksY,
 						  gl::GLuint colorLayerTexture,
-						  A_long colorWidthL,
-						  A_long colorHeightL,
 						  gl::GLuint depthLayerTexture,
-						  A_long depthWidthL,
-						  A_long depthHeightL,
 						  float minDepth,
 						  float maxDepth,
 						  CameraTransform cameraTransform,
@@ -334,9 +331,8 @@ namespace {
 		u = glGetUniformLocation(program, "waveCount");
 		glUniform1i(u, 0);
 
-		glDispatchCompute(colorWidthL, colorHeightL, 1);
+		glDispatchCompute(numBlocksX, numBlocksY, 1);
 		glUseProgram(0);
-
 	}
 
 	void RenderGL(const AESDK_OpenGL::AESDK_OpenGL_EffectRenderDataPtr& renderContext,
@@ -352,10 +348,6 @@ namespace {
 		GLuint u;
 
 		glEnable(GL_DEPTH_TEST);
-
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-		glBlendEquation(GL_FUNC_ADD);
 
 		// send uniforms to shader
 		glUseProgram(program);
@@ -619,6 +611,36 @@ ParamsSetup (
 	AEFX_CLR_STRUCT(def);
 
 	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Num_Blocks_X_Name),
+		DepthWaves_NUM_BLOCKS_SLIDER_MIN,
+		DepthWaves_NUM_BLOCKS_SLIDER_MAX,
+		DepthWaves_NUM_BLOCKS_SLIDER_MIN,
+		DepthWaves_NUM_BLOCKS_SLIDER_MAX,
+		DepthWaves_NUM_BLOCKS_DEFAULT,
+		PF_Precision_INTEGER,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		NUM_BLOCKS_X_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Num_Blocks_Y_Name),
+		DepthWaves_NUM_BLOCKS_SLIDER_MIN,
+		DepthWaves_NUM_BLOCKS_SLIDER_MAX,
+		DepthWaves_NUM_BLOCKS_SLIDER_MIN,
+		DepthWaves_NUM_BLOCKS_SLIDER_MAX,
+		DepthWaves_NUM_BLOCKS_DEFAULT,
+		PF_Precision_INTEGER,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		NUM_BLOCKS_Y_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	PF_ADD_FLOAT_SLIDERX(
 		STR(StrID_Wave_Displacement_Slider_Name),
 		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN,
 		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX,
@@ -662,7 +684,8 @@ ParamsSetup (
 	);
 
 	AEFX_CLR_STRUCT(def);
-	
+
+
 	out_data->num_params = DepthWaves_NUM_PARAMS;
 
 	return err;
@@ -724,6 +747,8 @@ PreRender(
 				max_depth_param,
 				min_block_size_param,
 				max_block_size_param,
+				num_blocks_x_param,
+				num_blocks_y_param,
 				wave_displacement_param,
 				wave_velocity_param,
 				wave_decay_param;
@@ -811,6 +836,26 @@ PreRender(
 		in_data->time_scale,
 		&max_block_size_param));
 
+	AEFX_CLR_STRUCT(num_blocks_x_param);
+
+	ERR(PF_CHECKOUT_PARAM(
+		in_data,
+		DepthWaves_NUM_BLOCKS_X,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&num_blocks_x_param));
+
+	AEFX_CLR_STRUCT(num_blocks_y_param);
+
+	ERR(PF_CHECKOUT_PARAM(
+		in_data,
+		DepthWaves_NUM_BLOCKS_Y,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&num_blocks_y_param));
+
 	AEFX_CLR_STRUCT(wave_displacement_param);
 
 	ERR(PF_CHECKOUT_PARAM(
@@ -883,12 +928,16 @@ SmartRender(
 	A_Time				comp_timeT = { 0, 1 };
 	AEGP_LayerH			camera_layerH = NULL;
 
+	A_long				numBlocksX,
+						numBlocksY;
 
 	AEGP_SuiteHandler suites(in_data->pica_basicP);
 
 	PF_ParamDef minDepth_param,
 				maxDepth_param,
-				minBlockSize_param;
+				minBlockSize_param,
+				numBlocksX_param,
+				numBlocksY_param;
 
 	AEFX_CLR_STRUCT(minDepth_param);
 
@@ -918,10 +967,30 @@ SmartRender(
 		in_data->time_scale,
 		&minBlockSize_param));
 
+	AEFX_CLR_STRUCT(numBlocksX_param);
+
+	ERR(PF_CHECKOUT_PARAM(in_data,
+		DepthWaves_NUM_BLOCKS_X,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&numBlocksX_param));
+
+	AEFX_CLR_STRUCT(numBlocksY_param);
+
+	ERR(PF_CHECKOUT_PARAM(in_data,
+		DepthWaves_NUM_BLOCKS_Y,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&numBlocksY_param));
+
 	if (!err){
 		minDepth = minDepth_param.u.fs_d.value;
 		maxDepth = maxDepth_param.u.fs_d.value;
 		minBlockSize = minBlockSize_param.u.fs_d.value;
+		numBlocksX = (A_long)numBlocksX_param.u.fs_d.value;
+		numBlocksY = (A_long)numBlocksY_param.u.fs_d.value;
 	}
 
 	ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref, DepthWaves_INPUT, &input_worldP)));
@@ -975,7 +1044,7 @@ SmartRender(
 			A_long heightL = input_worldP->height;
 
 			//loading OpenGL resources
-			AESDK_OpenGL_InitResources(*renderContext.get(), widthL, heightL, S_ResourcePath);
+			AESDK_OpenGL_InitResources(*renderContext.get(), widthL, heightL, numBlocksX, numBlocksY, 1, S_ResourcePath);
 
 			CHECK(wsP->PF_GetPixelFormat(input_worldP, &format));
 
@@ -992,7 +1061,7 @@ SmartRender(
 
 			glViewport(0, 0, widthL, heightL);
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-			glClear(GL_COLOR_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			
 			/*** Compute Particles ***/
 			// Get Camera Transform
@@ -1002,10 +1071,10 @@ SmartRender(
 			vmath::Vector3 fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF), 1.f);
 			CameraTransform cameraTransform(position, rotation, fieldOfView, focal_lengthF, minDepth, maxDepth);
 			
-			ComputeParticles(renderContext, colorTexture, widthL, heightL, depthTexture, widthL, heightL, minDepth, maxDepth, cameraTransform, multiplier16bit);
+			ComputeParticles(renderContext, (gl::GLuint)numBlocksX, (gl::GLuint)numBlocksY, colorTexture, depthTexture, minDepth, maxDepth, cameraTransform, multiplier16bit);
 
-			Vertex *data = new Vertex[widthL * heightL];
-			glGetNamedBufferSubData(renderContext->vertBuffer, 0, widthL * heightL * sizeof(Vertex), data);
+			Vertex *data = new Vertex[numBlocksX * numBlocksY];
+			glGetNamedBufferSubData(renderContext->vertBuffer, 0, numBlocksX * numBlocksY * sizeof(Vertex), data);
 
 			RenderGL(renderContext, renderContext->mOutputFrameTexture, widthL, heightL, minBlockSize, cameraTransform.projectionMatrix, multiplier16bit);
 
@@ -1051,6 +1120,8 @@ SmartRender(
 	ERR2(PF_CHECKIN_PARAM(in_data, &minDepth_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &maxDepth_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &minBlockSize_param));
+	ERR2(PF_CHECKIN_PARAM(in_data, &numBlocksX_param));
+	ERR2(PF_CHECKIN_PARAM(in_data, &numBlocksY_param));
 	
 	ERR2(extra->cb->checkin_layer_pixels(in_data->effect_ref, DepthWaves_INPUT));
 	ERR2(extra->cb->checkin_layer_pixels(in_data->effect_ref, DepthWaves_DEPTHMAP_LAYER));
