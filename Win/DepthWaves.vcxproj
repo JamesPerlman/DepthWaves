@@ -429,6 +429,8 @@ cl /D "MSWindows" /EP $(IntDir)%(Filename).rrc &gt;               "$(ProjectDir)
     <ClInclude Include="..\..\..\Headers\PF_Masks.h" />
     <ClInclude Include="..\..\..\Util\String_Utils.h" />
     <ClInclude Include="..\vmath.hpp" />
+    <ClInclude Include="Wave.h" />
+    <ClInclude Include="Impulse.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Util\AEFX_SuiteHelper.c" />

@@ -28,10 +28,9 @@ layout(std430, binding = 3) buffer wave {
 	Wave w[];
 };
 
+uniform mat4 cameraTransform;
 uniform float minDepth;
 uniform float maxDepth;
-uniform vec3 cameraPos;
-uniform vec3 cameraRot;
 uniform vec2 cameraFov;
 uniform int waveCount;
 
@@ -72,31 +71,6 @@ float getSmoothedDepth(ivec2 inPos)
 	return depth / c;
 }
 
-mat4 rotationX( in float angle ) {
-	return mat4(1.0,		0,			0,			0,
-			 	0, 	cos(angle),	-sin(angle),		0,
-				0, 	sin(angle),	 cos(angle),		0,
-				0, 			0,			  0, 		1);
-}
-
-mat4 rotationY( in float angle ) {
-	return mat4(cos(angle),		0,		sin(angle),	0,
-			 			0,		1.0,			 0,	0,
-				-sin(angle),	0,		cos(angle),	0,
-						0, 		0,				0,	1);
-}
-
-mat4 rotationZ( in float angle ) {
-	return mat4(cos(angle),		-sin(angle),	0,	0,
-			 	sin(angle),		cos(angle),		0,	0,
-						0,				0,		1,	0,
-						0,				0,		0,	1);
-}
-
-mat4 rotation( in vec3 angles ) {
-	return rotationZ(angles.z) * rotationY(angles.y) * rotationX(angles.x);
-}
-
 vec3 getWorldPosition()
 {
 	ivec2 depthImageSize = ivec2(imageSize(depthTex));
@@ -111,9 +85,7 @@ vec3 getWorldPosition()
 
 	vec3 pos = zCam * vec3(pixelTans, 1.f);
 
-	mat4 m = rotation(-cameraRot);
-
-	return cameraPos + (m * vec4(-pos.xy, pos.z, 1.0)).xyz;
+	return (cameraTransform * vec4(-pos.xy, pos.z, 1.0)).xyz;
 }
 
 void main()

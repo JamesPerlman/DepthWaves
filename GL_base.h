@@ -74,6 +74,9 @@ This plugin is kept only for reference.
 #include <fstream>
 #include <memory>
 #include <set>
+#include <vector>
+
+#include "Wave.h"
 
 //typedefs
 typedef unsigned char		u_char;
@@ -119,23 +122,6 @@ struct Vertex {
 	gl::GLfloat color[4];
 };
 
-struct Wave {
-	gl::GLfloat pos[4];
-	gl::GLfloat outerRadius, innerRadius, amplitude, velocity, decay;
-
-	Wave() : pos(), outerRadius(), innerRadius(), amplitude(), velocity(), decay() {};
-	
-	Wave(gl::GLfloat pos[4], gl::GLfloat outerRadius, gl::GLfloat innerRadius, gl::GLfloat amplitude, gl::GLfloat velocity, gl::GLfloat decay)
-	{
-		memcpy(this->pos, pos, 4 * sizeof(gl::GLfloat));
-		this->outerRadius = outerRadius;
-		this->innerRadius = innerRadius;
-		this->amplitude = amplitude;
-		this->velocity = velocity;
-		this->decay = decay;
-	};
-};
-
 typedef std::shared_ptr<AESDK_OpenGL_EffectCommonData> AESDK_OpenGL_EffectCommonDataPtr;
 
 /*
@@ -153,6 +139,7 @@ struct AESDK_OpenGL_EffectRenderData : public AESDK_OpenGL_EffectCommonData
 	u_int16 mRenderBufferWidthSu;
 	u_int16 mRenderBufferHeightSu;
 	u_long mNumBlocks;
+	u_long mNumWaves;
 
 	gl::GLuint computeShaderProgram;
 	gl::GLuint visualShaderProgram;
@@ -189,7 +176,7 @@ enum {
 void AESDK_OpenGL_Startup(AESDK_OpenGL_EffectCommonData& inData, const AESDK_OpenGL_EffectCommonData* inRootContext = nullptr);
 void AESDK_OpenGL_Shutdown(AESDK_OpenGL_EffectCommonData& inData);
 
-void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short inBufferWidth, u_short inBufferHeight, u_short numBlocksX, u_short numBlocksY, u_short numWaves, const std::string& resourcePath);
+void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short inBufferWidth, u_short inBufferHeight, u_short numBlocksX, u_short numBlocksY, std::vector<Wave> waves, const std::string& resourcePath);
 void AESDK_OpenGL_MakeReadyToRender(AESDK_OpenGL_EffectRenderData& inData, gl::GLuint textureHandle);
 gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::string inGeometryShaderFile, std::string inFragmentShaderFile);
 gl::GLuint AESDK_OpenGL_InitComputeShader(std::string inComputeShaderFile);
