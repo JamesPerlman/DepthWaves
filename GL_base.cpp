@@ -357,10 +357,31 @@ namespace AESDK_OpenGL
 
 			glGenBuffers(1, &vbo);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo);
-			glNamedBufferData(vbo, waves.size() * sizeof(Wave), waves.data(), GL_DYNAMIC_DRAW);
+			glNamedBufferData(vbo, waves.size() * sizeof(Wave), waves.data(), GL_STATIC_READ);
 
 			return vbo;
 		}
+		/*
+		GLuint CreateWaveBuffer(std::vector<Wave> waves)
+		{
+			GLuint vbo;
+
+			int numWaves = waves.size();
+			Wave *waveBuf = new Wave[waves.size()];
+
+			for (int i = 0; i < waves.size(); ++i) {
+				waveBuf[i] = waves[i];
+			}
+
+			glGenBuffers(1, &vbo);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo);
+			glNamedBufferData(vbo, numWaves * sizeof(Wave), waveBuf, GL_STATIC_READ);
+
+			delete waveBuf;
+
+			return vbo;
+		}
+		*/
 	} // namespace anonymous
 
 /*
@@ -608,7 +629,7 @@ namespace AESDK_OpenGL
 			inData.vertBuffer = CreateVertexBuffer(numBlocks);
 		}
 
-		if (numWavesChangedB || inData.waveBuffer == 0 && numWaves > 0) {
+		if (numWaves > 0) {
 			glDeleteBuffers(1, &inData.waveBuffer);
 			inData.waveBuffer = CreateWaveBuffer(waves);
 		}

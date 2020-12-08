@@ -306,6 +306,10 @@ namespace {
 						  gl::GLfloat maxBlockSize,
 						  gl::GLuint numBlocksX,
 						  gl::GLuint numBlocksY,
+						  gl::GLuint numWaves,
+						  gl::GLfloat waveDisplacement,
+						  gl::GLfloat waveVelocity,
+						  gl::GLfloat waveDecay,
 						  gl::GLfloat multiplier16bit)
 	{
 		GLuint program = renderContext->computeShaderProgram;
@@ -315,10 +319,6 @@ namespace {
 		glBindImageTexture(1, depthLayerTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 
 		GLuint u;
-
-		u = glGetUniformLocation(program, "cameraMatrix");
-		glUniformMatrix4fv(u, 1, GL_TRUE, (gl::GLfloat*)&cameraTransform.projectionMatrix);
-
 		u = glGetUniformLocation(program, "minDepth");
 		glUniform1f(u, minDepth);
 
@@ -329,7 +329,10 @@ namespace {
 		glUniform2fv(u, 1, (gl::GLfloat*)&cameraTransform.fov);
 
 		u = glGetUniformLocation(program, "waveCount");
-		glUniform1i(u, 0);
+		glUniform1i(u, numWaves);
+
+		u = glGetUniformLocation(program, "waveDisplacement");
+		glUniform1f(u, waveDisplacement);
 
 		glDispatchCompute(numBlocksX, numBlocksY, 1);
 		
@@ -897,6 +900,8 @@ PreRender(
 	ERR2(PF_CHECKIN_PARAM(in_data, &max_depth_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &min_block_size_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &max_block_size_param));
+	ERR2(PF_CHECKIN_PARAM(in_data, &num_blocks_x_param));
+	ERR2(PF_CHECKIN_PARAM(in_data, &num_blocks_y_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &wave_displacement_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &wave_velocity_param));
 	ERR2(PF_CHECKIN_PARAM(in_data, &wave_decay_param));
@@ -920,7 +925,7 @@ SmartRender(
 	PF_PixelFormat		format = PF_PixelFormat_INVALID;
 	PF_FpLong			minDepth, maxDepth,
 						minBlockSize, maxBlockSize,
-						velocity, decay, displacement;
+						waveVelocity, waveDecay, waveDisplacement;
 
 	A_Matrix4			camera_matrix4;
 	A_short				image_plane_widthL = 0,
@@ -933,7 +938,14 @@ SmartRender(
 
 	PF_KeyIndex			emitterNumKeyframes = 0;
 
-	AEGP_SuiteHandler suites(in_data->pica_basicP);
+	A_Time				compCurrentTime;
+	AEGP_LayerH			cameraLayer;
+	AEGP_StreamVal2		cameraPositionStreamValue, cameraRotationXStreamValue, cameraRotationYStreamValue, cameraRotationZStreamValue;
+
+	vmath::Vector3		cameraPosition;
+	vmath::Vector3		cameraRotation;
+
+	AEGP_SuiteHandler	suites(in_data->pica_basicP);
 
 	PF_ParamDef minDepth_param,
 				maxDepth_param,
@@ -1030,6 +1042,55 @@ SmartRender(
 		in_data->time_scale,
 		&waveDecay_param));
 
+	// Get camera position and rotation
+
+	ERR(suites.PFInterfaceSuite1()->AEGP_ConvertEffectToCompTime(
+		in_data->effect_ref,
+		in_data->current_time,
+		in_data->time_scale,
+		&compCurrentTime));
+
+	ERR(suites.PFInterfaceSuite1()->AEGP_GetEffectCamera(
+		in_data->effect_ref,
+		&compCurrentTime,
+		&cameraLayer));
+
+	ERR(suites.StreamSuite5()->AEGP_GetLayerStreamValue(
+		cameraLayer,
+		AEGP_LayerStream_POSITION,
+		AEGP_LTimeMode_CompTime,
+		&compCurrentTime,
+		false,
+		&cameraPositionStreamValue,
+		NULL));
+
+	ERR(suites.StreamSuite5()->AEGP_GetLayerStreamValue(
+		cameraLayer,
+		AEGP_LayerStream_ROTATE_X,
+		AEGP_LTimeMode_CompTime,
+		&compCurrentTime,
+		false,
+		&cameraRotationXStreamValue,
+		NULL));
+
+	ERR(suites.StreamSuite5()->AEGP_GetLayerStreamValue(
+		cameraLayer,
+		AEGP_LayerStream_ROTATE_Y,
+		AEGP_LTimeMode_CompTime,
+		&compCurrentTime,
+		false,
+		&cameraRotationYStreamValue,
+		NULL));
+
+	ERR(suites.StreamSuite5()->AEGP_GetLayerStreamValue(
+		cameraLayer,
+		AEGP_LayerStream_ROTATE_Z,
+		AEGP_LTimeMode_CompTime,
+		&compCurrentTime,
+		false,
+		&cameraRotationZStreamValue,
+		NULL));
+
 	if (!err){
 		// get wave keyframes
 		
@@ -1077,16 +1138,14 @@ SmartRender(
 						keyTime,
 						in_data->time_step,
 						in_data->time_scale,
-						&numBlocksY_param));
+						&emitterPosition_param));
 
 					// also need to add this to paramCheckouts so we check them back in at the end of SmartRender
 					vmath::Vector3 position(
-						numBlocksY_param.u.point3d_d.x_value,
-						numBlocksY_param.u.point3d_d.y_value,
-						numBlocksY_param.u.point3d_d.z_value
+						emitterPosition_param.u.point3d_d.x_value,
+						emitterPosition_param.u.point3d_d.y_value,
+						emitterPosition_param.u.point3d_d.z_value
 					);
-
-
 
 					impulses.emplace_back(position, keyTime, 0);
 
@@ -1097,7 +1156,9 @@ SmartRender(
 			}
 
 			// make sure last impulse ends at last keyTime
-			impulses.back().endTime = keyTime;
+			if (impulses.size() > 0) {
+				impulses.back().endTime = keyTime;
+			}
 
 			paramCheckouts.push_back(emitterImpulse_param);
 		}
@@ -1109,12 +1170,31 @@ SmartRender(
 		maxBlockSize = minBlockSize_param.u.fs_d.value;
 		numBlocksX = (A_long)numBlocksX_param.u.fs_d.value;
 		numBlocksY = (A_long)numBlocksY_param.u.fs_d.value;
-		velocity = waveVelocity_param.u.fs_d.value;
-		displacement = waveDisplacement_param.u.fs_d.value;
-		decay = waveDecay_param.u.fs_d.value;
+		waveVelocity = waveVelocity_param.u.fs_d.value;
+		waveDisplacement = waveDisplacement_param.u.fs_d.value;
+		waveDecay = waveDecay_param.u.fs_d.value;
+		
+		cameraPosition = vmath::Vector3(
+			cameraPositionStreamValue.three_d.x,
+			cameraPositionStreamValue.three_d.y,
+			cameraPositionStreamValue.three_d.z
+		);
+
+		cameraRotation = vmath::Vector3(
+			cameraRotationXStreamValue.one_d,
+			cameraRotationYStreamValue.one_d,
+			cameraRotationZStreamValue.one_d
+		);
+
+		vmath::Matrix4 waveTransformMatrix = vmath::inverse(vmath::Matrix4::rotationZYX(cameraRotation) * vmath::Matrix4::translation(cameraPosition));
 
 		// generate waves from impulses
 		for (Impulse &impulse : impulses) {
+
+			// Skip zero-duration impulses
+			if (impulse.startTime == impulse.endTime) {
+				continue;
+			}
 
 			PF_FpLong timeScale = in_data->time_scale;
 
@@ -1122,15 +1202,17 @@ SmartRender(
 			PF_FpLong impulseStart = impulse.startTime / timeScale;
 			PF_FpLong impulseEnd = impulse.endTime / timeScale;
 
-			PF_FpLong timeFromStart = impulseStart - now;
-			PF_FpLong timeFromEnd = impulseEnd - now;
+			PF_FpLong timeFromStart = now - impulseStart;
+			PF_FpLong timeFromEnd = now - impulseEnd;
 
 			if (timeFromStart > 0.0) {
+				
+				PF_FpLong outerRadius = waveVelocity * timeFromStart * pow(waveDecay, timeFromStart);
+				PF_FpLong innerRadius = timeFromEnd <= 0.0 ? 0.0 : waveVelocity * timeFromEnd * pow(waveDecay, timeFromEnd);
 
-				PF_FpLong outerRadius = velocity * timeFromStart * pow(decay, timeFromStart);
-				PF_FpLong innerRadius = timeFromEnd <= 0.0 ? 0.0 : velocity * timeFromEnd * pow(decay, timeFromEnd);
+				vmath::Vector4 transformedPosition =  waveTransformMatrix * vmath::Vector4(impulse.position, 1.f);
 
-				gl::GLfloat pos[4] = { impulse.position.getX(), impulse.position.getY(), impulse.position.getZ(), 1.0 };
+				gl::GLfloat pos[4] = { transformedPosition.getX(), transformedPosition.getY(), transformedPosition.getZ(), 1.0 };
 
 				waves.emplace_back(
 					pos,
@@ -1216,29 +1298,39 @@ SmartRender(
 			/*** Compute Particles ***/
 			// Get Camera Transform
 			vmath::Vector3 fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF), 1.f);
-			CameraTransform cameraTransform(fieldOfView, focal_lengthF, minDepth, maxDepth);
-			
-			ComputeParticles(
-				renderContext,
-				colorTexture,
-				depthTexture,
-				cameraTransform,
-				minDepth,
-				maxDepth,
-				minBlockSize,
-				maxBlockSize,
-				(gl::GLuint)numBlocksX,
-				(gl::GLuint)numBlocksY,
-				multiplier16bit
-			);
+			CameraTransform cameraTransform(cameraPosition, cameraRotation, fieldOfView, focal_lengthF, minDepth, maxDepth);
 
-			Vertex *data = new Vertex[numBlocksX * numBlocksY];
-			glGetNamedBufferSubData(renderContext->vertBuffer, 0, numBlocksX * numBlocksY * sizeof(Vertex), data);
+			if (numBlocksX * numBlocksY > 0) {
+				ComputeParticles(
+					renderContext,
+					colorTexture,
+					depthTexture,
+					cameraTransform,
+					minDepth,
+					maxDepth,
+					minBlockSize,
+					maxBlockSize,
+					(gl::GLuint)numBlocksX,
+					(gl::GLuint)numBlocksY,
+					waves.size(),
+					waveDisplacement,
+					waveVelocity,
+					waveDecay,
+					multiplier16bit
+				);
 
-			RenderGL(renderContext, renderContext->mOutputFrameTexture, widthL, heightL, minBlockSize, cameraTransform.projectionMatrix, multiplier16bit);
+				Vertex *verts = new Vertex[numBlocksX * numBlocksY];
+				glGetNamedBufferSubData(renderContext->vertBuffer, 0, numBlocksX * numBlocksY * sizeof(Vertex), verts);
 
-			delete[] data;
+				Wave *waveBuf = new Wave[waves.size()];
+				glGetNamedBufferSubData(renderContext->waveBuffer, 0, waves.size() * sizeof(Wave), waveBuf);
 
+
+				RenderGL(renderContext, renderContext->mOutputFrameTexture, widthL, heightL, minBlockSize, cameraTransform.projectionMatrix, multiplier16bit);
+
+				delete[] waveBuf;
+				delete[] verts;
+			}
 			// - we toggle PBO textures (we use the PBO we just created as an input)
 			// AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);
 			// ReportIfErrorFramebuffer(in_data, out_data);
@@ -1312,8 +1404,8 @@ PF_Err PluginDataEntryFunction(
 	result = PF_REGISTER_EFFECT(
 		inPtr,
 		inPluginDataCallBackPtr,
-		"DepthWaves", // Name
-		"ADBE DepthWaves", // Match Name
+		"VoxelWaves", // Name
+		"JPERL VoxelWaves", // Match Name
 		"jperl", // Category
 		AE_RESERVED_INFO); // Reserved Info
 

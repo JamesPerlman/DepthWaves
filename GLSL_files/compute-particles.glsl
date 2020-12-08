@@ -12,9 +12,6 @@ struct Wave {
 	vec4 pos;
 	float outerRadius;
 	float innerRadius;
-	float amplitude;
-	float velocity;
-	float decay;
 };
 
 layout(binding = 0, rgba32f) uniform readonly image2D colorTex;
@@ -28,11 +25,11 @@ layout(std430, binding = 3) buffer wave {
 	Wave w[];
 };
 
-uniform mat4 cameraTransform;
 uniform float minDepth;
 uniform float maxDepth;
 uniform vec2 cameraFov;
 uniform int waveCount;
+uniform float waveDisplacement;
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
@@ -85,7 +82,7 @@ vec3 getWorldPosition()
 
 	vec3 pos = zCam * vec3(pixelTans, 1.f);
 
-	return (cameraTransform * vec4(-pos.xy, pos.z, 1.0)).xyz;
+	return vec4(-pos.xy, pos.z, 1.0).xyz;
 }
 
 void main()
@@ -108,7 +105,7 @@ void main()
 		float c = cos(M_PI * (t - 0.5f));
 		float k = c * c;
 
-		float r2 = w[i].amplitude * k;
+		float r2 = waveDisplacement * k;
 		point += r2 * normalize(d);
 	}
 	
