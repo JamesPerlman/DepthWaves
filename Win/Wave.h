@@ -7,8 +7,9 @@
 struct Wave {
 	gl::GLfloat pos[4];
 	gl::GLfloat outerRadius, innerRadius;
+	gl::GLfloat padding[2];
 
-	Wave() : pos(), outerRadius(), innerRadius() {};
+	Wave() : pos(), outerRadius(), innerRadius(), padding() {};
 
 	Wave(gl::GLfloat pos[4], gl::GLfloat outerRadius, gl::GLfloat innerRadius)
 	{

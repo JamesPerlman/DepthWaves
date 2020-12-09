@@ -12,6 +12,7 @@ struct Wave {
 	vec4 pos;
 	float outerRadius;
 	float innerRadius;
+	vec2 padding;
 };
 
 layout(binding = 0, rgba32f) uniform readonly image2D colorTex;

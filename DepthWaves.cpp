@@ -1214,11 +1214,8 @@ SmartRender(
 
 				gl::GLfloat pos[4] = { transformedPosition.getX(), transformedPosition.getY(), transformedPosition.getZ(), 1.0 };
 
-				waves.emplace_back(
-					pos,
-					(gl::GLfloat)outerRadius,
-					(gl::GLfloat)innerRadius
-				);
+				Wave wave(pos, outerRadius, innerRadius);
+				waves.push_back(wave);
 			}
 		}
 	}
