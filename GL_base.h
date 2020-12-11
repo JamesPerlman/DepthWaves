@@ -176,7 +176,7 @@ enum {
 void AESDK_OpenGL_Startup(AESDK_OpenGL_EffectCommonData& inData, const AESDK_OpenGL_EffectCommonData* inRootContext = nullptr);
 void AESDK_OpenGL_Shutdown(AESDK_OpenGL_EffectCommonData& inData);
 
-void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short inBufferWidth, u_short inBufferHeight, u_short numBlocksX, u_short numBlocksY, std::vector<Wave> waves, const std::string& resourcePath);
+void AESDK_OpenGL_InitResources(AESDK_OpenGL_EffectRenderData& inData, u_short inBufferWidth, u_short inBufferHeight, u_short numBlocksX, u_short numBlocksY, Wave *waves, u_short numWaves, const std::string& resourcePath);
 void AESDK_OpenGL_MakeReadyToRender(AESDK_OpenGL_EffectRenderData& inData, gl::GLuint textureHandle);
 gl::GLuint AESDK_OpenGL_InitVisualShader(std::string inVertexShaderFile, std::string inGeometryShaderFile, std::string inFragmentShaderFile);
 gl::GLuint AESDK_OpenGL_InitComputeShader(std::string inComputeShaderFile);

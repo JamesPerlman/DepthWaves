@@ -13,7 +13,7 @@ resource 'PiPL' (16000) {
 		},
 		/* [2] */
 		Name {
-			"VoxelWaves"
+			"DepthWaves"
 		},
 		/* [3] */
 		Category {
@@ -52,11 +52,11 @@ resource 'PiPL' (16000) {
 
 		},
 		AE_Effect_Global_OutFlags_2 {
-			0x00001400
+			0x00201400
 		},
 		/* [11] */
 		AE_Effect_Match_Name {
-			"JPERL VoxelWaves"
+			"JPERL DepthWaves"
 		},
 		/* [12] */
 		AE_Reserved_Info {

@@ -12,6 +12,11 @@ namespace {
 		vmath::Vector3 fov;
 		vmath::Matrix4 projectionMatrix;
 
+		CameraTransform()
+			: fov()
+			, projectionMatrix()
+		{};
+
 		CameraTransform(vmath::Vector3 position, vmath::Vector3 rotation, vmath::Vector3 fov, float focalLen, float clipNear, float clipFar)
 		{
 			float n = clipNear;

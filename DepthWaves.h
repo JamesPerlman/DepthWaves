@@ -66,6 +66,13 @@ typedef float				fpshort;
 #include "AEFX_ChannelDepthTpl.h"
 #include "AEGP_SuiteHandler.h"
 
+#include "CameraTransform.hpp"
+#include "Impulse.h"
+#include "Wave.h"
+#include "vmath.hpp"
+
+#include <vector>
+
 #include "DepthWaves_Strings.h"
 
 
@@ -148,6 +155,24 @@ extern "C" {
 		void			*extra);
 
 }
+
+typedef struct DepthWavesInfo {
+	PF_FpLong minDepth;
+	PF_FpLong maxDepth;
+	PF_FpLong minBlockSize;
+	PF_FpLong maxBlockSize;
+	PF_FpLong waveVelocity;
+	PF_FpLong waveDisplacement;
+	PF_FpLong waveDecay;
+
+	A_long numBlocksX;
+	A_long numBlocksY;
+	A_long numWaves;
+
+	Wave *waves;
+
+	CameraTransform cameraTransform;
+} DepthWavesInfo, *DepthWavesInfoP, **DepthWavesInfoH;
 
 //helper func
 inline u_char AlphaLookup(u_int16 inValSu, u_int16 inMaxSu)

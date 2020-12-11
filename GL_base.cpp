@@ -351,37 +351,16 @@ namespace AESDK_OpenGL
 		}
 
 		// Allocate wave buffer
-		GLuint CreateWaveBuffer(std::vector<Wave> waves)
+		GLuint CreateWaveBuffer(Wave *waves, u_short numWaves)
 		{
 			GLuint vbo;
 
 			glGenBuffers(1, &vbo);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo);
-			glNamedBufferData(vbo, waves.size() * sizeof(Wave), waves.data(), GL_STATIC_READ);
+			glNamedBufferData(vbo, numWaves * sizeof(Wave), waves, GL_STATIC_READ);
 
 			return vbo;
 		}
-		/*
-		GLuint CreateWaveBuffer(std::vector<Wave> waves)
-		{
-			GLuint vbo;
-
-			int numWaves = waves.size();
-			Wave *waveBuf = new Wave[waves.size()];
-
-			for (int i = 0; i < waves.size(); ++i) {
-				waveBuf[i] = waves[i];
-			}
-
-			glGenBuffers(1, &vbo);
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo);
-			glNamedBufferData(vbo, numWaves * sizeof(Wave), waveBuf, GL_STATIC_READ);
-
-			delete waveBuf;
-
-			return vbo;
-		}
-		*/
 	} // namespace anonymous
 
 /*
@@ -586,15 +565,15 @@ namespace AESDK_OpenGL
 		u_short inBufferHeight,
 		u_short numBlocksX,
 		u_short numBlocksY,
-		std::vector<Wave> waves,
+		Wave *waves,
+		u_short numWaves,
 		const std::string& resourcePath)
 	{
 		u_long numBlocks = (u_long)numBlocksX * (u_long)numBlocksY;
-		u_long numWaves = waves.size();
 
 		bool renderSizeChangedB = inData.mRenderBufferWidthSu != inBufferWidth || inData.mRenderBufferHeightSu != inBufferHeight;
 		bool numBlocksChangedB = inData.mNumBlocks != numBlocks;
-		bool numWavesChangedB = inData.mNumWaves != waves.size();
+		bool numWavesChangedB = inData.mNumWaves != numWaves;
 
 		inData.mRenderBufferWidthSu = inBufferWidth;
 		inData.mRenderBufferHeightSu = inBufferHeight;
@@ -631,7 +610,7 @@ namespace AESDK_OpenGL
 
 		if (numWaves > 0) {
 			glDeleteBuffers(1, &inData.waveBuffer);
-			inData.waveBuffer = CreateWaveBuffer(waves);
+			inData.waveBuffer = CreateWaveBuffer(waves, numWaves);
 		}
 
 		// Create a frame-buffer object and bind it...

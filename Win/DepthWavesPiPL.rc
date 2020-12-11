@@ -17,7 +17,7 @@ BEGIN
 	"eman",
 	0, 0x0,
 	12, 0x0,
-	"\x0AVoxelWaves\0", 
+	"\x0ADepthWaves\0", 
 
 	"MIB8",
 	"gtac", 
@@ -65,13 +65,13 @@ BEGIN
 	"2LGe", 
 	0L,
 	4L,
-	5120L, 
+	2102272L, 
 
 	"MIB8",
 	"ANMe",
 	0, 0x0,
 	20, 0x0,
-	"\x10JPERL VoxelWaves\0\0\0", 
+	"\x10JPERL DepthWaves\0\0\0", 
 
 	"MIB8",
 	0x6165464CL, 
