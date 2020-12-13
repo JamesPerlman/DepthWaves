@@ -105,12 +105,15 @@ namespace {
 	{
 		glEnableVertexAttribArray(PositionSlot);
 		glEnableVertexAttribArray(ColorSlot);
+		glEnableVertexAttribArray(SizeSlot);
 		glBindBuffer(GL_ARRAY_BUFFER, vertBuffer);
-		glVertexAttribPointer(PositionSlot, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
-		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(4 * sizeof(float)));
+		glVertexAttribPointer(PositionSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+		glVertexAttribPointer(ColorSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(4 * sizeof(gl::GLfloat)));
+		glVertexAttribPointer(SizeSlot, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(8 * sizeof(gl::GLfloat)));
 		glDrawArrays(GL_POINTS, 0, numVerts);
 		glDisableVertexAttribArray(PositionSlot);
 		glDisableVertexAttribArray(ColorSlot);
+		glDisableVertexAttribArray(SizeSlot);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
@@ -290,12 +293,12 @@ namespace {
 		}
 	}
 
-	PF_Err GetTransformationMatrices(
+	PF_Err GetCameraTransformations(
 		PF_InData *in_data,
-		CameraTransform *cameraTransform,
-		vmath::Matrix4 *waveTransformMatrix
-		)
-	{
+		A_long layerTime,
+		vmath::Vector3 *cameraPosition,
+		vmath::Vector3 *cameraRotation
+	) {
 
 		PF_Err err = PF_Err_NONE;
 
@@ -303,28 +306,11 @@ namespace {
 		AEGP_LayerH			cameraLayer;
 		AEGP_StreamVal2		cameraPositionStreamValue, cameraRotationXStreamValue, cameraRotationYStreamValue, cameraRotationZStreamValue;
 
-		A_Matrix4			camera_matrix4;
-		A_short				image_plane_widthL = 0, image_plane_heightL = 0;
-		A_FpLong			focal_lengthF = 0;
-		A_Time				comp_timeT = { 0, 1 };
-
 		AEGP_SuiteHandler	suites(in_data->pica_basicP);
-
-		vmath::Vector3		cameraPosition;
-		vmath::Vector3		cameraRotation;
-
-		ERR(suites.PFInterfaceSuite1()->AEGP_GetEffectCameraMatrix(
-			in_data->effect_ref,
-			&comp_timeT,
-			&camera_matrix4,
-			&focal_lengthF,
-			&image_plane_widthL,
-			&image_plane_heightL
-		));
 
 		ERR(suites.PFInterfaceSuite1()->AEGP_ConvertEffectToCompTime(
 			in_data->effect_ref,
-			in_data->current_time,
+			layerTime,
 			in_data->time_scale,
 			&compCurrentTime));
 
@@ -369,37 +355,76 @@ namespace {
 			&cameraRotationZStreamValue,
 			NULL));
 
-		cameraPosition = vmath::Vector3(
+		*cameraPosition = vmath::Vector3(
 			cameraPositionStreamValue.three_d.x,
 			cameraPositionStreamValue.three_d.y,
 			cameraPositionStreamValue.three_d.z
 		);
 
-		cameraRotation = vmath::Vector3(
+		*cameraRotation = vmath::Vector3(
 			cameraRotationXStreamValue.one_d,
 			cameraRotationYStreamValue.one_d,
 			cameraRotationZStreamValue.one_d
 		);
 
+		return err;
+	}
+
+	PF_Err GetSceneInfo(
+		PF_InData *in_data,
+		PF_FpLong maxDepth,
+		CameraTransform *cameraTransform,
+		vmath::Matrix4 *waveTransformMatrix
+	) {
+
+		PF_Err err = PF_Err_NONE;
+
+		A_Matrix4			camera_matrix4;
+		A_short				image_plane_widthL = 0, image_plane_heightL = 0;
+		A_FpLong			focal_lengthF = 0;
+		A_Time				comp_timeT = { 0, 1 };
+
+		AEGP_SuiteHandler	suites(in_data->pica_basicP);
+
+		vmath::Vector3		cameraPosition;
+		vmath::Vector3		cameraRotation;
+
+		ERR(suites.PFInterfaceSuite1()->AEGP_GetEffectCameraMatrix(
+			in_data->effect_ref,
+			&comp_timeT,
+			&camera_matrix4,
+			&focal_lengthF,
+			&image_plane_widthL,
+			&image_plane_heightL
+		));
+
+		ERR(GetCameraTransformations(
+			in_data,
+			in_data->current_time,
+			&cameraPosition,
+			&cameraRotation
+		));
+
 		vmath::Vector3 fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF), 1.f);
 
-		*cameraTransform = CameraTransform(cameraPosition, cameraRotation, fieldOfView, focal_lengthF, 1, DepthWaves_DEPTH_SLIDER_MAX);
+		GetCameraTransformations(
+			in_data,
+			in_data->current_time,
+			&cameraPosition,
+			&cameraRotation
+		);
+
 		*waveTransformMatrix = vmath::inverse(vmath::Matrix4::rotationZYX(cameraRotation) * vmath::Matrix4::translation(cameraPosition));
+		*cameraTransform = CameraTransform(cameraPosition, cameraRotation, fieldOfView, focal_lengthF, 1, maxDepth);
 
 		return err;
 	}
 
 	PF_Err GetWaves(
 		PF_InData *in_data,
-		PF_FpLong waveAmplitude,
-		PF_FpLong waveBrightness,
-		PF_FpLong waveDisplacement,
-		PF_FpLong waveVelocity,
-		PF_FpLong waveDecay,
 		vmath::Matrix4 waveTransformMatrix,
-		std::vector<Wave> &waves,
-		std::vector<PF_ParamDef> &paramCheckouts)
-	{
+		std::vector<Wave> &waves
+	) {
 		PF_KeyIndex			emitterNumKeyframes = 0;
 		A_long				keyTime = 0;
 		A_u_long			keyTimeScale = 0;
@@ -407,6 +432,9 @@ namespace {
 
 		std::vector<Impulse> impulses;
 		std::vector<PF_ParamDef> keyframeCheckouts;
+
+		PF_FpLong timeScale = in_data->time_scale;
+		PF_FpLong timeStep = in_data->time_step;
 
 		PF_Err err = PF_Err_NONE;
 		bool wasEmitting = false;
@@ -439,31 +467,7 @@ namespace {
 			if (isEmitting != wasEmitting) {
 				if (isEmitting == true) {
 					// emitter goes from off -> on: add a new impulse
-
-					// wave position is the value of the Emitter Position slider at this keyframe
-					// essentially we ignore continuous animation of the position slider
-					PF_ParamDef emitterPosition_param;
-
-					AEFX_CLR_STRUCT(emitterPosition_param);
-
-					ERR(PF_CHECKOUT_PARAM(in_data,
-						DepthWaves_EMITTER_POSITION,
-						keyTime,
-						in_data->time_step,
-						in_data->time_scale,
-						&emitterPosition_param));
-
-					paramCheckouts.push_back(emitterPosition_param);
-
-					// also need to add this to paramCheckouts so we check them back in at the end of SmartRender
-					vmath::Vector3 position(
-						emitterPosition_param.u.point3d_d.x_value,
-						emitterPosition_param.u.point3d_d.y_value,
-						emitterPosition_param.u.point3d_d.z_value
-					);
-
-					impulses.emplace_back(position, keyTime, 0);
-
+					impulses.emplace_back(keyTime, 0);
 				}
 				else {
 					// emitter goes from on -> off: end latest impulse
@@ -485,8 +489,6 @@ namespace {
 				continue;
 			}
 
-			PF_FpLong timeScale = in_data->time_scale;
-
 			PF_FpLong now = in_data->current_time / timeScale;
 			PF_FpLong impulseStart = impulse.startTime / timeScale;
 			PF_FpLong impulseEnd = impulse.endTime / timeScale;
@@ -496,14 +498,132 @@ namespace {
 
 			if (timeFromStart > 0.0) {
 
-				PF_FpLong outerRadius = waveVelocity * timeFromStart * pow(waveDecay, timeFromStart);
-				PF_FpLong innerRadius = timeFromEnd <= 0.0 ? 0.0 : waveVelocity * timeFromEnd * pow(waveDecay, timeFromEnd);
+				PF_ParamDef emitterPosition_param,
+					nearBlockSize_param,
+					farBlockSize_param,
+					waveBlockSizeMultiplier_param,
+					waveDisplacement_param,
+					waveDisplacementDirection_param,
+					waveBrightness_param,
+					waveVelocity_param,
+					waveDecay_param;
 
-				vmath::Vector4 transformedPosition = waveTransformMatrix * vmath::Vector4(impulse.position, 1.f);
+				PF_FpLong maxBlockSize,
+					waveDisplacement,
+					waveBrightness,
+					waveVelocity,
+					waveDecay;
 
-				gl::GLfloat pos[4] = { transformedPosition.getX(), transformedPosition.getY(), transformedPosition.getZ(), 1.0 };
+				vmath::Vector3 waveEmitterPosition,
+					waveDisplacementDirection;
 
-				Wave wave(pos, outerRadius, innerRadius);
+				AEFX_CLR_STRUCT(emitterPosition_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_EMITTER_POSITION,
+					keyTime,
+					timeStep,
+					timeScale,
+					&emitterPosition_param));
+
+				AEFX_CLR_STRUCT(waveDisplacement_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_WAVE_DISPLACEMENT,
+					keyTime,
+					timeStep,
+					timeScale,
+					&waveDisplacement_param));
+
+				AEFX_CLR_STRUCT(waveBlockSizeMultiplier_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER,
+					keyTime,
+					timeStep,
+					timeScale,
+					&waveBlockSizeMultiplier_param));
+
+				AEFX_CLR_STRUCT(waveDisplacementDirection_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_WAVE_DISPLACEMENT_DIRECTION,
+					keyTime,
+					timeStep,
+					timeScale,
+					&waveDisplacementDirection_param));
+
+				AEFX_CLR_STRUCT(waveBrightness_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_WAVE_BRIGHTNESS,
+					keyTime,
+					timeStep,
+					timeScale,
+					&waveBrightness_param));
+
+				AEFX_CLR_STRUCT(waveVelocity_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_WAVE_VELOCITY,
+					keyTime,
+					timeStep,
+					timeScale,
+					&waveVelocity_param));
+
+				AEFX_CLR_STRUCT(waveDecay_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_WAVE_DECAY,
+					keyTime,
+					timeStep,
+					timeScale,
+					&waveDecay_param));
+
+
+				waveVelocity = waveVelocity_param.u.fs_d.value;
+				waveDecay = waveDecay_param.u.fs_d.value;
+
+				PF_FpLong amplitude = pow(waveDecay, timeFromEnd);
+
+				waveDisplacement = amplitude * waveDisplacement_param.u.fs_d.value;
+				waveBrightness = amplitude * waveBrightness_param.u.fs_d.value;
+
+				PF_FpLong outerRadius = waveVelocity * timeFromStart;
+				PF_FpLong innerRadius = timeFromEnd <= 0.0 ? 0.0 : waveVelocity * timeFromEnd;
+				PF_FpLong waveAmplitude = pow(waveDecay, (timeFromStart + timeFromEnd) * 0.5);
+				PF_FpLong waveBlockSizeMultiplier = MIX(1.0, waveBlockSizeMultiplier_param.u.fs_d.value, waveAmplitude);
+
+				waveEmitterPosition = vmath::Vector3(
+					emitterPosition_param.u.point3d_d.x_value,
+					emitterPosition_param.u.point3d_d.y_value,
+					emitterPosition_param.u.point3d_d.z_value
+				);
+
+				waveDisplacementDirection = vmath::Vector3(
+					waveDisplacementDirection_param.u.point3d_d.x_value,
+					waveDisplacementDirection_param.u.point3d_d.y_value,
+					waveDisplacementDirection_param.u.point3d_d.z_value
+				);
+
+				vmath::Vector4 transformedPosition = waveTransformMatrix * vmath::Vector4(waveEmitterPosition, 1.f);
+				vmath::Vector4 transformedDisplacementDirection = waveTransformMatrix * vmath::Vector4(waveDisplacementDirection, 1.f) - waveTransformMatrix * vmath::Vector4(0.f, 0.f, 0.f, 1.f);
+
+				gl::GLfloat wavePosition[4] = {
+					(gl::GLfloat)transformedPosition.getX(),
+					(gl::GLfloat)transformedPosition.getY(),
+					(gl::GLfloat)transformedPosition.getZ(),
+					1.0
+				};
+
+				gl::GLfloat waveDisplacementVector[4] = {
+					(gl::GLfloat)transformedDisplacementDirection.getX(),
+					(gl::GLfloat)transformedDisplacementDirection.getY(),
+					(gl::GLfloat)transformedDisplacementDirection.getZ(),
+					(gl::GLfloat)waveDisplacement
+				};
+
+				Wave wave(
+					wavePosition,
+					waveDisplacementVector,
+					waveBlockSizeMultiplier,
+					waveBrightness,
+					outerRadius,
+					innerRadius
+				);
 
 				waves.push_back(wave);
 			}
@@ -538,14 +658,17 @@ namespace {
 		u = glGetUniformLocation(program, "maxDepth");
 		glUniform1f(u, info->maxDepth);
 
+		u = glGetUniformLocation(program, "nearBlockSize");
+		glUniform1f(u, info->nearBlockSize);
+
+		u = glGetUniformLocation(program, "farBlockSize");
+		glUniform1f(u, info->farBlockSize);
+
 		u = glGetUniformLocation(program, "cameraFov");
 		glUniform2fv(u, 1, (gl::GLfloat*)&info->cameraTransform.fov);
 
 		u = glGetUniformLocation(program, "waveCount");
 		glUniform1i(u, info->numWaves);
-
-		u = glGetUniformLocation(program, "waveDisplacement");
-		glUniform1f(u, info->waveDisplacement);
 
 		glDispatchCompute(info->numBlocksX, info->numBlocksY, 1);
 		
@@ -556,8 +679,7 @@ namespace {
 				  gl::GLuint inputFrameTexture,
 				  A_long widthL,
 				  A_long heightL,
-				  PF_FpLong minBlockSize,
-				  vmath::Matrix4 projectionMatrix,
+				  DepthWavesInfo *info,
 				  float multiplier16bit)
 	{
 
@@ -568,11 +690,15 @@ namespace {
 
 		// send uniforms to shader
 		glUseProgram(program);
-		u = glGetUniformLocation(program, "size");
-		glUniform1f(u, minBlockSize);
 
 		u = glGetUniformLocation(program, "modelViewProjectionMatrix");
-		glUniformMatrix4fv(u, 1, GL_TRUE, (gl::GLfloat*)&projectionMatrix);
+		glUniformMatrix4fv(u, 1, GL_TRUE, (gl::GLfloat*)&info->cameraTransform.projectionMatrix);
+
+		u = glGetUniformLocation(program, "nearBlockSize");
+		glUniform1f(u, info->nearBlockSize);
+
+		u = glGetUniformLocation(program, "farBlockSize");
+		glUniform1f(u, info->farBlockSize);
 
 		// render
 		glBindVertexArray(renderContext->vao);
@@ -755,6 +881,7 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
+	// Emitter Impulse
 	PF_ADD_CHECKBOXX(
 		STR(StrID_Emitter_Impulse_Switch_Name),
 		DepthWaves_EMITTER_IMPULSE_DEFAULT,
@@ -764,6 +891,7 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
+	// Emitter Position
 	PF_ADD_POINT_3D(
 		STR(StrID_Emitter_Position_Point_Name),
 		0,
@@ -774,14 +902,15 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
+	// Min Depth
 	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Min_Depth_Slider_Name), 
+		STR(StrID_Min_Depth_Slider_Name),
 		DepthWaves_DEPTH_SLIDER_MIN,
-		DepthWaves_DEPTH_SLIDER_MAX, 
-		DepthWaves_DEPTH_SLIDER_MIN, 
-		DepthWaves_DEPTH_SLIDER_MAX, 
+		DepthWaves_DEPTH_SLIDER_MAX,
+		DepthWaves_DEPTH_SLIDER_MIN,
+		DepthWaves_DEPTH_SLIDER_MAX,
 		DepthWaves_MIN_DEPTH_DEFAULT,
-		PF_Precision_HUNDREDTHS,
+		PF_Precision_THOUSANDTHS,
 		PF_ValueDisplayFlag_NONE,
 		PF_ParamFlag_RESERVED1,
 		MIN_DEPTH_DISK_ID
@@ -789,14 +918,15 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
+	// Max Depth
 	PF_ADD_FLOAT_SLIDERX(
 		STR(StrID_Max_Depth_Slider_Name),
 		DepthWaves_DEPTH_SLIDER_MIN,
 		DepthWaves_DEPTH_SLIDER_MAX,
 		DepthWaves_DEPTH_SLIDER_MIN,
 		DepthWaves_DEPTH_SLIDER_MAX,
-		DepthWaves_MAX_DEPTH_DEFAULT,
-		PF_Precision_HUNDREDTHS,
+		DepthWaves_MIN_DEPTH_DEFAULT,
+		PF_Precision_THOUSANDTHS,
 		PF_ValueDisplayFlag_NONE,
 		PF_ParamFlag_RESERVED1,
 		MAX_DEPTH_DISK_ID
@@ -804,36 +934,140 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
+	// Scale Blocks With Depth
+	PF_ADD_CHECKBOXX(
+		STR(StrID_Scale_Blocks_With_Depth_Name),
+		DepthWaves_SCALE_BLOCKS_WITH_DEPTH_DEFAULT,
+		PF_ParamFlag_RESERVED1,
+		PF_ParamFlag_CANNOT_TIME_VARY
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Near Block Size
 	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Min_Block_Size_Slider_Name),
+		STR(StrID_Near_Block_Size_Slider_Name),
 		DepthWaves_BLOCK_SIZE_SLIDER_MIN,
 		DepthWaves_BLOCK_SIZE_SLIDER_MAX,
 		DepthWaves_BLOCK_SIZE_SLIDER_MIN,
 		DepthWaves_BLOCK_SIZE_SLIDER_MAX,
 		DepthWaves_MIN_BLOCK_SIZE_DEFAULT,
-		PF_Precision_HUNDREDTHS,
+		PF_Precision_THOUSANDTHS,
 		PF_ValueDisplayFlag_NONE,
 		PF_ParamFlag_CANNOT_TIME_VARY,
-		MIN_BLOCK_SIZE_DISK_ID
+		NEAR_BLOCK_SIZE_DISK_ID
 	);
 
 	AEFX_CLR_STRUCT(def);
-	
+
+	// Far Block Size
 	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Max_Block_Size_Slider_Name),
+		STR(StrID_Far_Block_Size_Slider_Name),
 		DepthWaves_BLOCK_SIZE_SLIDER_MIN,
 		DepthWaves_BLOCK_SIZE_SLIDER_MAX,
 		DepthWaves_BLOCK_SIZE_SLIDER_MIN,
 		DepthWaves_BLOCK_SIZE_SLIDER_MAX,
 		DepthWaves_MAX_BLOCK_SIZE_DEFAULT,
-		PF_Precision_HUNDREDTHS,
+		PF_Precision_THOUSANDTHS,
 		PF_ValueDisplayFlag_NONE,
 		PF_ParamFlag_CANNOT_TIME_VARY,
-		MAX_BLOCK_SIZE_DISK_ID
+		NEAR_BLOCK_SIZE_DISK_ID
 	);
 
 	AEFX_CLR_STRUCT(def);
 
+	// Wave Block Size Multiplier
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Wave_Block_Size_Multiplier_Slider_Name),
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN,
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX,
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN,
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX,
+		DepthWaves_WAVE_DISPLACEMENT_DEFAULT,
+		PF_Precision_TENTHS,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		WAVE_BLOCK_SIZE_MULTIPLIER_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Wave Displacement
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Wave_Displacement_Slider_Name),
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN,
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX,
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN,
+		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX,
+		DepthWaves_WAVE_DISPLACEMENT_DEFAULT,
+		PF_Precision_TENTHS,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		WAVE_DISPLACEMENT_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Displacement Direction
+	PF_ADD_POINT_3D(
+		STR(StrID_Wave_Displacement_Direction_Name),
+		0,
+		0,
+		0,
+		WAVE_DISPLACEMENT_DIRECTION_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Wave Brightness
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Wave_Brightness_Slider_Name),
+		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MIN,
+		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MAX,
+		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MIN,
+		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MAX,
+		DepthWaves_WAVE_BRIGHTNESS_DEFAULT,
+		PF_Precision_HUNDREDTHS,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		WAVE_BRIGHTNESS_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Wave Velocity
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Wave_Velocity_Slider_Name),
+		DepthWaves_WAVE_VELOCITY_SLIDER_MIN,
+		DepthWaves_WAVE_VELOCITY_SLIDER_MAX,
+		DepthWaves_WAVE_VELOCITY_SLIDER_MIN,
+		DepthWaves_WAVE_VELOCITY_SLIDER_MAX,
+		DepthWaves_WAVE_VELOCITY_DEFAULT,
+		PF_Precision_TENTHS,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		WAVE_VELOCITY_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Wave Decay
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Wave_Decay_Slider_Name),
+		DepthWaves_WAVE_DECAY_SLIDER_MIN,
+		DepthWaves_WAVE_DECAY_SLIDER_MAX,
+		DepthWaves_WAVE_DECAY_SLIDER_MIN,
+		DepthWaves_WAVE_DECAY_SLIDER_MAX,
+		DepthWaves_WAVE_DECAY_DEFAULT,
+		PF_Precision_THOUSANDTHS,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		WAVE_DECAY_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Num Blocks X
 	PF_ADD_FLOAT_SLIDERX(
 		STR(StrID_Num_Blocks_X_Name),
 		DepthWaves_NUM_BLOCKS_SLIDER_MIN,
@@ -849,6 +1083,7 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
+	// Num Blocks Y
 	PF_ADD_FLOAT_SLIDERX(
 		STR(StrID_Num_Blocks_Y_Name),
 		DepthWaves_NUM_BLOCKS_SLIDER_MIN,
@@ -860,51 +1095,6 @@ ParamsSetup (
 		PF_ValueDisplayFlag_NONE,
 		PF_ParamFlag_RESERVED1,
 		NUM_BLOCKS_Y_DISK_ID
-	);
-
-	AEFX_CLR_STRUCT(def);
-
-	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Wave_Displacement_Slider_Name),
-		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN,
-		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX,
-		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN,
-		DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX,
-		DepthWaves_WAVE_DISPLACEMENT_DEFAULT,
-		PF_Precision_HUNDREDTHS,
-		PF_ValueDisplayFlag_NONE,
-		PF_ParamFlag_CANNOT_TIME_VARY,
-		WAVE_DISPLACEMENT_DISK_ID
-	);
-
-	AEFX_CLR_STRUCT(def);
-
-	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Wave_Velocity_Slider_Name),
-		DepthWaves_WAVE_VELOCITY_SLIDER_MIN,
-		DepthWaves_WAVE_VELOCITY_SLIDER_MAX,
-		DepthWaves_WAVE_VELOCITY_SLIDER_MIN,
-		DepthWaves_WAVE_VELOCITY_SLIDER_MAX,
-		DepthWaves_WAVE_VELOCITY_DEFAULT,
-		PF_Precision_HUNDREDTHS,
-		PF_ValueDisplayFlag_NONE,
-		PF_ParamFlag_CANNOT_TIME_VARY,
-		WAVE_VELOCITY_DISK_ID
-	);
-
-	AEFX_CLR_STRUCT(def);
-
-	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Wave_Decay_Slider_Name),
-		DepthWaves_WAVE_DECAY_SLIDER_MIN,
-		DepthWaves_WAVE_DECAY_SLIDER_MAX,
-		DepthWaves_WAVE_DECAY_SLIDER_MIN,
-		DepthWaves_WAVE_DECAY_SLIDER_MAX,
-		DepthWaves_WAVE_DECAY_DEFAULT,
-		PF_Precision_HUNDREDTHS,
-		PF_ValueDisplayFlag_NONE,
-		PF_ParamFlag_CANNOT_TIME_VARY,
-		WAVE_DECAY_DISK_ID
 	);
 
 	AEFX_CLR_STRUCT(def);
@@ -984,24 +1174,21 @@ PreRender(
 
 	PF_ParamDef minDepth_param,
 		maxDepth_param,
-		minBlockSize_param,
-		maxBlockSize_param,
-		numBlocksX_param,
-		numBlocksY_param,
+		nearBlockSize_param,
+		farBlockSize_param,
+		waveBlockSizeMultiplier_param,
+		waveDisplacement_param,
+		waveDisplacementDirection_param,
+		waveBrightness_param,
 		waveVelocity_param,
 		waveDecay_param,
-		waveDisplacement_param;
+		numBlocksX_param,
+		numBlocksY_param;
 
-	PF_FpLong minDepth,
-		maxDepth,
-		minBlockSize,
-		maxBlockSize,
-		waveVelocity,
-		waveDisplacement,
-		waveDecay;
+	PF_FpLong nearBlockSize, farBlockSize,
+		minDepth, maxDepth;
 
-	A_long numBlocksX,
-		numBlocksY;
+	A_long numBlocksX, numBlocksY;
 
 	std::vector<PF_ParamDef> paramCheckouts;
 	std::vector<Wave>waves;
@@ -1019,7 +1206,6 @@ PreRender(
 		in_data->time_step,
 		in_data->time_scale,
 		&in_result));
-
 
 	ERR(extra->cb->checkout_layer(
 		in_data->effect_ref,
@@ -1049,23 +1235,23 @@ PreRender(
 		in_data->time_scale,
 		&maxDepth_param));
 
-	AEFX_CLR_STRUCT(minBlockSize_param);
+	AEFX_CLR_STRUCT(nearBlockSize_param);
 
 	ERR(PF_CHECKOUT_PARAM(in_data,
-		DepthWaves_MIN_BLOCK_SIZE,
+		DepthWaves_NEAR_BLOCK_SIZE,
 		in_data->current_time,
 		in_data->time_step,
 		in_data->time_scale,
-		&minBlockSize_param));
+		&nearBlockSize_param));
 
-	AEFX_CLR_STRUCT(maxBlockSize_param);
+	AEFX_CLR_STRUCT(farBlockSize_param);
 
 	ERR(PF_CHECKOUT_PARAM(in_data,
-		DepthWaves_MIN_BLOCK_SIZE,
+		DepthWaves_FAR_BLOCK_SIZE,
 		in_data->current_time,
 		in_data->time_step,
 		in_data->time_scale,
-		&minBlockSize_param));
+		&farBlockSize_param));
 
 	AEFX_CLR_STRUCT(numBlocksX_param);
 
@@ -1085,63 +1271,28 @@ PreRender(
 		in_data->time_scale,
 		&numBlocksY_param));
 
-	AEFX_CLR_STRUCT(waveDisplacement_param);
-
-	ERR(PF_CHECKOUT_PARAM(in_data,
-		DepthWaves_WAVE_DISPLACEMENT,
-		in_data->current_time,
-		in_data->time_step,
-		in_data->time_scale,
-		&waveDisplacement_param));
-
-	AEFX_CLR_STRUCT(waveVelocity_param);
-
-	ERR(PF_CHECKOUT_PARAM(in_data,
-		DepthWaves_WAVE_VELOCITY,
-		in_data->current_time,
-		in_data->time_step,
-		in_data->time_scale,
-		&waveVelocity_param));
-
-	AEFX_CLR_STRUCT(waveDecay_param);
-
-	ERR(PF_CHECKOUT_PARAM(in_data,
-		DepthWaves_WAVE_DECAY,
-		in_data->current_time,
-		in_data->time_step,
-		in_data->time_scale,
-		&waveDecay_param));
-
 	if (!err) {
 		// other params
 		DepthWavesInfo info;
 
+		nearBlockSize = nearBlockSize_param.u.fs_d.value;
+		farBlockSize = farBlockSize_param.u.fs_d.value;
 		minDepth = minDepth_param.u.fs_d.value;
 		maxDepth = maxDepth_param.u.fs_d.value;
-		minBlockSize = minBlockSize_param.u.fs_d.value;
-		maxBlockSize = minBlockSize_param.u.fs_d.value;
 		numBlocksX = (A_long)numBlocksX_param.u.fs_d.value;
 		numBlocksY = (A_long)numBlocksY_param.u.fs_d.value;
-		waveVelocity = waveVelocity_param.u.fs_d.value;
-		waveDisplacement = waveDisplacement_param.u.fs_d.value;
-		waveDecay = waveDecay_param.u.fs_d.value;
 
-		ERR(GetTransformationMatrices(
+		ERR(GetSceneInfo(
 			in_data,
+			maxDepth,
 			&cameraTransform,
 			&waveTransformMatrix
 		));
 
 		ERR(GetWaves(
 			in_data,
-			maxBlockSize,
-			1.0,
-			waveDisplacement,
-			waveVelocity,
-			waveDecay,
 			waveTransformMatrix,
-			waves,
-			paramCheckouts
+			waves
 		));
 		
 		DepthWavesInfo *infoP = reinterpret_cast<DepthWavesInfo*>(malloc(sizeof(DepthWavesInfo)));
@@ -1149,16 +1300,13 @@ PreRender(
 		if (infoP) {
 			infoP->minDepth = minDepth;
 			infoP->maxDepth = maxDepth;
-			infoP->minBlockSize = minBlockSize;
-			infoP->maxBlockSize = maxBlockSize;
+			infoP->nearBlockSize = nearBlockSize;
+			infoP->farBlockSize = farBlockSize;
 			infoP->numBlocksX = numBlocksX;
 			infoP->numBlocksY = numBlocksY;
-			infoP->waveVelocity = waveVelocity;
-			infoP->waveDisplacement = waveDisplacement;
-			infoP->waveDecay = waveDecay;
 			infoP->cameraTransform = cameraTransform;
 			infoP->numWaves = waves.size();
-				
+
 			if (infoP->numWaves) {
 				infoP->waves = (Wave*)malloc(waves.size() * sizeof(Wave));
 				memcpy(infoP->waves, waves.data(), waves.size() * sizeof(Wave));
@@ -1179,7 +1327,7 @@ PreRender(
 
 	if (extra->cb->GuidMixInPtr) {
 		if (waves.size() > 0) {
-			ERR(extra->cb->GuidMixInPtr(in_data->effect_ref, waves.size() * sizeof(waves), reinterpret_cast<void *>(&waves[0])));
+			ERR(extra->cb->GuidMixInPtr(in_data->effect_ref, waves.size() * sizeof(Wave), reinterpret_cast<void *>(&waves[0])));
 		} else {
 			ERR(extra->cb->GuidMixInPtr(in_data->effect_ref, 0, NULL));
 		}
@@ -1286,8 +1434,7 @@ SmartRender(
 					renderContext,
 					renderContext->mOutputFrameTexture,
 					widthL, heightL,
-					info->minBlockSize,
-					info->cameraTransform.projectionMatrix,
+					info,
 					multiplier16bit
 				);
 

@@ -1,14 +1,15 @@
 #version 450
 #extension GL_EXT_geometry_shader4 : enable
 
+
 layout (points) in;
 layout (triangle_strip, max_vertices = 14) out;
 
 in vec4 vertColor[];
+in vec4 vertSize[];
+
 
 out vec4 fragColor;
-
-uniform float size;
 
 uniform mat4 modelViewProjectionMatrix;
 
@@ -31,6 +32,8 @@ const float cube[42] = {
 
 void main() {
 	vec4 center = gl_in[0].gl_Position;
+	
+	float size = vertSize[0].x;
 
 	fragColor = vertColor[0];
 

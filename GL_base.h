@@ -120,6 +120,8 @@ struct AESDK_OpenGL_EffectCommonData
 struct Vertex {
 	gl::GLfloat pos[4];
 	gl::GLfloat color[4];
+	gl::GLfloat size;
+	gl::GLfloat padding[3];
 };
 
 typedef std::shared_ptr<AESDK_OpenGL_EffectCommonData> AESDK_OpenGL_EffectCommonDataPtr;
@@ -167,7 +169,8 @@ enum AESDK_OpenGL_Err
 
 enum {
 	PositionSlot = 0,
-	ColorSlot
+	ColorSlot,
+	SizeSlot
 };
 
 /*

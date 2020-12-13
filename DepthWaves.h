@@ -87,28 +87,35 @@ typedef float				fpshort;
 
 /* Parameter defaults */
 
-#define	DepthWaves_EMITTER_IMPULSE_DEFAULT		false
-#define DepthWaves_MIN_DEPTH_DEFAULT			100.0
-#define DepthWaves_MAX_DEPTH_DEFAULT			1000.0
-#define DepthWaves_MIN_BLOCK_SIZE_DEFAULT		1.0
-#define DepthWaves_MAX_BLOCK_SIZE_DEFAULT		1.0
-#define DepthWaves_WAVE_DISPLACEMENT_DEFAULT	100.0
-#define DepthWaves_WAVE_VELOCITY_DEFAULT		100.0
-#define DepthWaves_WAVE_DECAY_DEFAULT			0.95
-#define DepthWaves_NUM_BLOCKS_DEFAULT			50
+#define	DepthWaves_EMITTER_IMPULSE_DEFAULT				false
+#define DepthWaves_MIN_DEPTH_DEFAULT					100.0
+#define DepthWaves_MAX_DEPTH_DEFAULT					1000.0
+#define DepthWaves_SCALE_BLOCKS_WITH_DEPTH_DEFAULT		true
+#define DepthWaves_MIN_BLOCK_SIZE_DEFAULT				0.0
+#define DepthWaves_MAX_BLOCK_SIZE_DEFAULT				0.0
+#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_DEFAULT	0.0
+#define DepthWaves_WAVE_DISPLACEMENT_DEFAULT			100.0
+#define DepthWaves_WAVE_BRIGHTNESS_DEFAULT				0.0
+#define DepthWaves_WAVE_VELOCITY_DEFAULT				100.0
+#define DepthWaves_WAVE_DECAY_DEFAULT					0.95
+#define DepthWaves_NUM_BLOCKS_DEFAULT					50
 
-#define DepthWaves_DEPTH_SLIDER_MIN				-1000
-#define DepthWaves_DEPTH_SLIDER_MAX				1000
-#define DepthWaves_BLOCK_SIZE_SLIDER_MIN		0.001
-#define DepthWaves_BLOCK_SIZE_SLIDER_MAX		2.0
-#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN	-10000.0
-#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX 10000.0
-#define DepthWaves_WAVE_VELOCITY_SLIDER_MIN		0.0
-#define DepthWaves_WAVE_VELOCITY_SLIDER_MAX		10000.0
-#define DepthWaves_WAVE_DECAY_SLIDER_MIN		0.0
-#define DepthWaves_WAVE_DECAY_SLIDER_MAX		1.0
-#define DepthWaves_NUM_BLOCKS_SLIDER_MIN		1
-#define DepthWaves_NUM_BLOCKS_SLIDER_MAX		2000
+#define DepthWaves_BLOCK_SIZE_SLIDER_MIN				0.0000
+#define DepthWaves_BLOCK_SIZE_SLIDER_MAX				1000.0
+#define DepthWaves_DEPTH_SLIDER_MIN						0
+#define DepthWaves_DEPTH_SLIDER_MAX						100000.0
+#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_MIN		0.0
+#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_MAX		100.0
+#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN			-10000.0
+#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX			10000.0
+#define DepthWaves_WAVE_BRIGHTNESS_SLIDER_MIN			-1.0
+#define DepthWaves_WAVE_BRIGHTNESS_SLIDER_MAX			1.0
+#define DepthWaves_WAVE_VELOCITY_SLIDER_MIN				0.0
+#define DepthWaves_WAVE_VELOCITY_SLIDER_MAX				10000.0
+#define DepthWaves_WAVE_DECAY_SLIDER_MIN				0.0
+#define DepthWaves_WAVE_DECAY_SLIDER_MAX				1.0
+#define DepthWaves_NUM_BLOCKS_SLIDER_MIN				1
+#define DepthWaves_NUM_BLOCKS_SLIDER_MAX				2000
 
 enum {
 	DepthWaves_INPUT = 0,
@@ -117,13 +124,17 @@ enum {
 	DepthWaves_EMITTER_POSITION,
 	DepthWaves_MIN_DEPTH,
 	DepthWaves_MAX_DEPTH,
-	DepthWaves_MIN_BLOCK_SIZE,
-	DepthWaves_MAX_BLOCK_SIZE,
-	DepthWaves_NUM_BLOCKS_X,
-	DepthWaves_NUM_BLOCKS_Y,
+	DepthWaves_SCALE_BLOCKS_WITH_DEPTH,
+	DepthWaves_NEAR_BLOCK_SIZE,
+	DepthWaves_FAR_BLOCK_SIZE,
+	DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER,
 	DepthWaves_WAVE_DISPLACEMENT,
+	DepthWaves_WAVE_DISPLACEMENT_DIRECTION,
+	DepthWaves_WAVE_BRIGHTNESS,
 	DepthWaves_WAVE_VELOCITY,
 	DepthWaves_WAVE_DECAY,
+	DepthWaves_NUM_BLOCKS_X,
+	DepthWaves_NUM_BLOCKS_Y,
 	DepthWaves_NUM_PARAMS
 };
 
@@ -133,13 +144,16 @@ enum {
 	EMITTER_POSITION_DISK_ID,
 	MIN_DEPTH_DISK_ID,
 	MAX_DEPTH_DISK_ID,
-	MIN_BLOCK_SIZE_DISK_ID,
-	MAX_BLOCK_SIZE_DISK_ID,
-	NUM_BLOCKS_X_DISK_ID,
-	NUM_BLOCKS_Y_DISK_ID,
+	NEAR_BLOCK_SIZE_DISK_ID,
+	FAR_BLOCK_SIZE_DISK_ID,
+	WAVE_BLOCK_SIZE_MULTIPLIER_DISK_ID,
 	WAVE_DISPLACEMENT_DISK_ID,
+	WAVE_DISPLACEMENT_DIRECTION_DISK_ID,
+	WAVE_BRIGHTNESS_DISK_ID,
 	WAVE_VELOCITY_DISK_ID,
-	WAVE_DECAY_DISK_ID
+	WAVE_DECAY_DISK_ID,
+	NUM_BLOCKS_X_DISK_ID,
+	NUM_BLOCKS_Y_DISK_ID
 };
 
 extern "C" {
@@ -157,13 +171,8 @@ extern "C" {
 }
 
 typedef struct DepthWavesInfo {
-	PF_FpLong minDepth;
-	PF_FpLong maxDepth;
-	PF_FpLong minBlockSize;
-	PF_FpLong maxBlockSize;
-	PF_FpLong waveVelocity;
-	PF_FpLong waveDisplacement;
-	PF_FpLong waveDecay;
+	PF_FpLong minDepth, maxDepth;
+	PF_FpLong nearBlockSize, farBlockSize;
 
 	A_long numBlocksX;
 	A_long numBlocksY;
@@ -183,5 +192,7 @@ inline u_char AlphaLookup(u_int16 inValSu, u_int16 inMaxSu)
 
 //error checking macro
 #define CHECK(err) {PF_Err err1 = err; if (err1 != PF_Err_NONE ){ throw PF_Err(err1);}}
+
+#define MIX(a, b, k) (a + (b - a) * k)
 
 #endif // DepthWaves_H
