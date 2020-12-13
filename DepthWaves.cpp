@@ -220,6 +220,7 @@ namespace {
 
 		glTexImage2D(GL_TEXTURE_2D, 0, (GLint)GL_RGBA32F, input_worldP->width, input_worldP->height, 0, GL_RGBA, GL_FLOAT, nullptr);
 
+		multiplier16bitOut = 1.0f;
 		switch (format)
 		{
 		case PF_PixelFormat_ARGB128:
@@ -699,6 +700,9 @@ namespace {
 
 		u = glGetUniformLocation(program, "farBlockSize");
 		glUniform1f(u, info->farBlockSize);
+
+		u = glGetUniformLocation(program, "multiplier16bit");
+		glUniform1f(u, multiplier16bit);
 
 		// render
 		glBindVertexArray(renderContext->vao);
