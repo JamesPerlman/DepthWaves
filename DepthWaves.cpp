@@ -298,6 +298,7 @@ namespace {
 		PF_InData *in_data,
 		A_long layerTime,
 		vmath::Vector3 *cameraPosition,
+		vmath::Vector3 *cameraOrientation,
 		vmath::Vector3 *cameraRotation
 	) {
 
@@ -305,7 +306,8 @@ namespace {
 
 		A_Time				compCurrentTime;
 		AEGP_LayerH			cameraLayer;
-		AEGP_StreamVal2		cameraPositionStreamValue, cameraRotationXStreamValue, cameraRotationYStreamValue, cameraRotationZStreamValue;
+		AEGP_StreamVal2		cameraPositionStreamValue, cameraOrientationStreamValue,
+			cameraRotationXStreamValue, cameraRotationYStreamValue, cameraRotationZStreamValue;
 
 		AEGP_SuiteHandler	suites(in_data->pica_basicP);
 
@@ -356,16 +358,31 @@ namespace {
 			&cameraRotationZStreamValue,
 			NULL));
 
+		ERR(suites.StreamSuite5()->AEGP_GetLayerStreamValue(
+			cameraLayer,
+			AEGP_LayerStream_ORIENTATION,
+			AEGP_LTimeMode_CompTime,
+			&compCurrentTime,
+			false,
+			&cameraOrientationStreamValue,
+			NULL));
+
 		*cameraPosition = vmath::Vector3(
 			cameraPositionStreamValue.three_d.x,
 			cameraPositionStreamValue.three_d.y,
 			cameraPositionStreamValue.three_d.z
 		);
 
+		*cameraOrientation = vmath::Vector3(
+			cameraOrientationStreamValue.three_d.x * PF_RAD_PER_DEGREE,
+			cameraOrientationStreamValue.three_d.y * PF_RAD_PER_DEGREE,
+			cameraOrientationStreamValue.three_d.z * PF_RAD_PER_DEGREE
+		);
+
 		*cameraRotation = vmath::Vector3(
-			cameraRotationXStreamValue.one_d,
-			cameraRotationYStreamValue.one_d,
-			cameraRotationZStreamValue.one_d
+			cameraRotationXStreamValue.one_d * PF_RAD_PER_DEGREE,
+			cameraRotationYStreamValue.one_d * PF_RAD_PER_DEGREE,
+			cameraRotationZStreamValue.one_d * PF_RAD_PER_DEGREE
 		);
 
 		return err;
@@ -389,6 +406,7 @@ namespace {
 
 		vmath::Vector3		cameraPosition;
 		vmath::Vector3		cameraRotation;
+		vmath::Vector3		cameraOrientation;
 
 		ERR(suites.PFInterfaceSuite1()->AEGP_GetEffectCameraMatrix(
 			in_data->effect_ref,
@@ -403,6 +421,7 @@ namespace {
 			in_data,
 			in_data->current_time,
 			&cameraPosition,
+			&cameraOrientation,
 			&cameraRotation
 		));
 
@@ -412,10 +431,11 @@ namespace {
 			in_data,
 			in_data->current_time,
 			&cameraPosition,
+			&cameraOrientation,
 			&cameraRotation
 		);
 
-		*waveTransformMatrix = vmath::inverse(vmath::Matrix4::rotationZYX(cameraRotation) * vmath::Matrix4::translation(cameraPosition));
+		*waveTransformMatrix = vmath::Matrix4::rotationZYX(-cameraRotation) * vmath::Matrix4::rotationZYX(-cameraOrientation) * vmath::Matrix4::translation(-cameraPosition);
 		*cameraTransform = CameraTransform(cameraPosition, cameraRotation, fieldOfView, focal_lengthF, 1, maxDepth);
 
 		return err;
@@ -603,10 +623,11 @@ namespace {
 				vmath::Vector4 transformedPosition = waveTransformMatrix * vmath::Vector4(waveEmitterPosition, 1.f);
 				vmath::Vector4 transformedDisplacementDirection = waveTransformMatrix * vmath::Vector4(waveDisplacementDirection, 1.f) - waveTransformMatrix * vmath::Vector4(0.f, 0.f, 0.f, 1.f);
 
+				// Negated components to transform to openGL coordinate space
 				gl::GLfloat wavePosition[4] = {
 					(gl::GLfloat)transformedPosition.getX(),
 					(gl::GLfloat)transformedPosition.getY(),
-					(gl::GLfloat)transformedPosition.getZ(),
+					-(gl::GLfloat)transformedPosition.getZ(),
 					1.0
 				};
 
