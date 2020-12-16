@@ -1523,8 +1523,8 @@ PF_Err PluginDataEntryFunction(
 	result = PF_REGISTER_EFFECT(
 		inPtr,
 		inPluginDataCallBackPtr,
-		"DepthWaves", // Name
-		"JPERL DepthWaves", // Match Name
+		"DepthWaves v1", // Name
+		"JPERL DepthWaves v1", // Match Name
 		"jperl", // Category
 		AE_RESERVED_INFO); // Reserved Info
 

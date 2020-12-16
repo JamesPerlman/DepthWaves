@@ -30,7 +30,7 @@ typedef struct {
 
 TableString		g_strs[StrID_NUMTYPES] = {
 	StrID_NONE,										"",
-	StrID_Name,										"DepthWaves",
+	StrID_Name,										"DepthWaves v1",
 	StrID_Description,								"Send waves through a voxel reconstruction from a color map and a depth map.",
 	StrID_DepthMap_Layer_Name,						"Depth Map Layer",
 	StrID_Emitter_Impulse_Switch_Name,				"Emitter Impulse",

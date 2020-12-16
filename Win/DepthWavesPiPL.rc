@@ -16,8 +16,8 @@ BEGIN
 	"MIB8",
 	"eman",
 	0, 0x0,
-	12, 0x0,
-	"\x0ADepthWaves\0", 
+	16, 0x0,
+	"\x0DDepthWaves v1\0\0", 
 
 	"MIB8",
 	"gtac", 

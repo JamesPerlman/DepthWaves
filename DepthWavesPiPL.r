@@ -13,7 +13,7 @@ resource 'PiPL' (16000) {
 		},
 		/* [2] */
 		Name {
-			"DepthWaves"
+			"DepthWaves v1"
 		},
 		/* [3] */
 		Category {
