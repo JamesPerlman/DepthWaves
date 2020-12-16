@@ -30,7 +30,6 @@ typedef enum {
 	StrID_Emitter_Position_Point_Name,
 	StrID_Min_Depth_Slider_Name,
 	StrID_Max_Depth_Slider_Name,
-	StrID_Scale_Blocks_With_Depth_Name,
 	StrID_Near_Block_Size_Slider_Name,
 	StrID_Far_Block_Size_Slider_Name,
 	StrID_Wave_Block_Size_Multiplier_Slider_Name,

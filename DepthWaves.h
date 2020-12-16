@@ -90,7 +90,6 @@ typedef float				fpshort;
 #define	DepthWaves_EMITTER_IMPULSE_DEFAULT				false
 #define DepthWaves_MIN_DEPTH_DEFAULT					100.0
 #define DepthWaves_MAX_DEPTH_DEFAULT					1000.0
-#define DepthWaves_SCALE_BLOCKS_WITH_DEPTH_DEFAULT		true
 #define DepthWaves_MIN_BLOCK_SIZE_DEFAULT				0.0
 #define DepthWaves_MAX_BLOCK_SIZE_DEFAULT				0.0
 #define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_DEFAULT	0.0
@@ -124,7 +123,6 @@ enum {
 	DepthWaves_EMITTER_POSITION,
 	DepthWaves_MIN_DEPTH,
 	DepthWaves_MAX_DEPTH,
-	DepthWaves_SCALE_BLOCKS_WITH_DEPTH,
 	DepthWaves_NEAR_BLOCK_SIZE,
 	DepthWaves_FAR_BLOCK_SIZE,
 	DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER,

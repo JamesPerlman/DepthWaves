@@ -368,21 +368,21 @@ namespace {
 			NULL));
 
 		*cameraPosition = vmath::Vector3(
-			cameraPositionStreamValue.three_d.x,
-			cameraPositionStreamValue.three_d.y,
-			cameraPositionStreamValue.three_d.z
+			(float)cameraPositionStreamValue.three_d.x,
+			(float)cameraPositionStreamValue.three_d.y,
+			(float)cameraPositionStreamValue.three_d.z
 		);
 
 		*cameraOrientation = vmath::Vector3(
-			cameraOrientationStreamValue.three_d.x * PF_RAD_PER_DEGREE,
-			cameraOrientationStreamValue.three_d.y * PF_RAD_PER_DEGREE,
-			cameraOrientationStreamValue.three_d.z * PF_RAD_PER_DEGREE
+			(float)(cameraOrientationStreamValue.three_d.x * PF_RAD_PER_DEGREE),
+			(float)(cameraOrientationStreamValue.three_d.y * PF_RAD_PER_DEGREE),
+			(float)(cameraOrientationStreamValue.three_d.z * PF_RAD_PER_DEGREE)
 		);
 
 		*cameraRotation = vmath::Vector3(
-			cameraRotationXStreamValue.one_d * PF_RAD_PER_DEGREE,
-			cameraRotationYStreamValue.one_d * PF_RAD_PER_DEGREE,
-			cameraRotationZStreamValue.one_d * PF_RAD_PER_DEGREE
+			(float)(cameraRotationXStreamValue.one_d * PF_RAD_PER_DEGREE),
+			(float)(cameraRotationYStreamValue.one_d * PF_RAD_PER_DEGREE),
+			(float)(cameraRotationZStreamValue.one_d * PF_RAD_PER_DEGREE)
 		);
 
 		return err;
@@ -425,7 +425,11 @@ namespace {
 			&cameraRotation
 		));
 
-		vmath::Vector3 fieldOfView(2.f * atan2f(0.5f * float(image_plane_widthL), focal_lengthF), 2.f * atan2f(0.5f * float(image_plane_heightL), focal_lengthF), 1.f);
+		vmath::Vector3 fieldOfView(
+			2.f * atan2f(0.5f * (float)image_plane_widthL, (float)focal_lengthF),
+			2.f * atan2f(0.5f * (float)image_plane_heightL, (float)focal_lengthF),
+			1.f
+		);
 
 		GetCameraTransformations(
 			in_data,
@@ -436,7 +440,14 @@ namespace {
 		);
 
 		*waveTransformMatrix = vmath::Matrix4::rotationZYX(-cameraRotation) * vmath::Matrix4::rotationZYX(-cameraOrientation) * vmath::Matrix4::translation(-cameraPosition);
-		*cameraTransform = CameraTransform(cameraPosition, cameraRotation, fieldOfView, focal_lengthF, 1, maxDepth);
+		*cameraTransform = CameraTransform(
+			cameraPosition,
+			cameraRotation,
+			fieldOfView,
+			(float)focal_lengthF,
+			1.f,
+			(float)maxDepth
+		);
 
 		return err;
 	}
@@ -454,8 +465,8 @@ namespace {
 		std::vector<Impulse> impulses;
 		std::vector<PF_ParamDef> keyframeCheckouts;
 
-		PF_FpLong timeScale = in_data->time_scale;
-		PF_FpLong timeStep = in_data->time_step;
+		A_u_long timeScale = in_data->time_scale;
+		A_long timeStep = in_data->time_step;
 
 		PF_Err err = PF_Err_NONE;
 		bool wasEmitting = false;
@@ -520,8 +531,6 @@ namespace {
 			if (timeFromStart > 0.0) {
 
 				PF_ParamDef emitterPosition_param,
-					nearBlockSize_param,
-					farBlockSize_param,
 					waveBlockSizeMultiplier_param,
 					waveDisplacement_param,
 					waveDisplacementDirection_param,
@@ -529,8 +538,7 @@ namespace {
 					waveVelocity_param,
 					waveDecay_param;
 
-				PF_FpLong maxBlockSize,
-					waveDisplacement,
+				PF_FpLong waveDisplacement,
 					waveBrightness,
 					waveVelocity,
 					waveDecay;
@@ -609,15 +617,15 @@ namespace {
 				PF_FpLong waveBlockSizeMultiplier = MIX(1.0, waveBlockSizeMultiplier_param.u.fs_d.value, waveAmplitude);
 
 				waveEmitterPosition = vmath::Vector3(
-					emitterPosition_param.u.point3d_d.x_value,
-					emitterPosition_param.u.point3d_d.y_value,
-					emitterPosition_param.u.point3d_d.z_value
+					(float)emitterPosition_param.u.point3d_d.x_value,
+					(float)emitterPosition_param.u.point3d_d.y_value,
+					(float)emitterPosition_param.u.point3d_d.z_value
 				);
 
 				waveDisplacementDirection = vmath::Vector3(
-					waveDisplacementDirection_param.u.point3d_d.x_value,
-					waveDisplacementDirection_param.u.point3d_d.y_value,
-					waveDisplacementDirection_param.u.point3d_d.z_value
+					(float)waveDisplacementDirection_param.u.point3d_d.x_value,
+					(float)waveDisplacementDirection_param.u.point3d_d.y_value,
+					(float)waveDisplacementDirection_param.u.point3d_d.z_value
 				);
 
 				vmath::Vector4 transformedPosition = waveTransformMatrix * vmath::Vector4(waveEmitterPosition, 1.f);
@@ -628,7 +636,7 @@ namespace {
 					(gl::GLfloat)transformedPosition.getX(),
 					(gl::GLfloat)transformedPosition.getY(),
 					-(gl::GLfloat)transformedPosition.getZ(),
-					1.0
+					1.f
 				};
 
 				gl::GLfloat waveDisplacementVector[4] = {
@@ -641,10 +649,10 @@ namespace {
 				Wave wave(
 					wavePosition,
 					waveDisplacementVector,
-					waveBlockSizeMultiplier,
-					waveBrightness,
-					outerRadius,
-					innerRadius
+					(gl::GLfloat)waveBlockSizeMultiplier,
+					(gl::GLfloat)waveBrightness,
+					(gl::GLfloat)outerRadius,
+					(gl::GLfloat)innerRadius
 				);
 
 				waves.push_back(wave);
@@ -675,16 +683,16 @@ namespace {
 
 		GLuint u;
 		u = glGetUniformLocation(program, "minDepth");
-		glUniform1f(u, info->minDepth);
+		glUniform1f(u, (gl::GLfloat)info->minDepth);
 
 		u = glGetUniformLocation(program, "maxDepth");
-		glUniform1f(u, info->maxDepth);
+		glUniform1f(u, (gl::GLfloat)info->maxDepth);
 
 		u = glGetUniformLocation(program, "nearBlockSize");
-		glUniform1f(u, info->nearBlockSize);
+		glUniform1f(u, (gl::GLfloat)info->nearBlockSize);
 
 		u = glGetUniformLocation(program, "farBlockSize");
-		glUniform1f(u, info->farBlockSize);
+		glUniform1f(u, (gl::GLfloat)info->farBlockSize);
 
 		u = glGetUniformLocation(program, "cameraFov");
 		glUniform2fv(u, 1, (gl::GLfloat*)&info->cameraTransform.fov);
@@ -717,10 +725,10 @@ namespace {
 		glUniformMatrix4fv(u, 1, GL_TRUE, (gl::GLfloat*)&info->cameraTransform.projectionMatrix);
 
 		u = glGetUniformLocation(program, "nearBlockSize");
-		glUniform1f(u, info->nearBlockSize);
+		glUniform1f(u, (gl::GLfloat)info->nearBlockSize);
 
 		u = glGetUniformLocation(program, "farBlockSize");
-		glUniform1f(u, info->farBlockSize);
+		glUniform1f(u, (gl::GLfloat)info->farBlockSize);
 
 		u = glGetUniformLocation(program, "multiplier16bit");
 		glUniform1f(u, multiplier16bit);
@@ -959,16 +967,6 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
-	// Scale Blocks With Depth
-	PF_ADD_CHECKBOXX(
-		STR(StrID_Scale_Blocks_With_Depth_Name),
-		DepthWaves_SCALE_BLOCKS_WITH_DEPTH_DEFAULT,
-		PF_ParamFlag_RESERVED1,
-		PF_ParamFlag_CANNOT_TIME_VARY
-	);
-
-	AEFX_CLR_STRUCT(def);
-
 	// Near Block Size
 	PF_ADD_FLOAT_SLIDERX(
 		STR(StrID_Near_Block_Size_Slider_Name),
@@ -1201,12 +1199,6 @@ PreRender(
 		maxDepth_param,
 		nearBlockSize_param,
 		farBlockSize_param,
-		waveBlockSizeMultiplier_param,
-		waveDisplacement_param,
-		waveDisplacementDirection_param,
-		waveBrightness_param,
-		waveVelocity_param,
-		waveDecay_param,
 		numBlocksX_param,
 		numBlocksY_param;
 
@@ -1217,7 +1209,6 @@ PreRender(
 
 	std::vector<PF_ParamDef> paramCheckouts;
 	std::vector<Wave>waves;
-	A_short numWaves;
 
 	vmath::Matrix4 waveTransformMatrix;
 	CameraTransform cameraTransform;
