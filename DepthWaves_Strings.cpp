@@ -37,7 +37,6 @@ TableString		g_strs[StrID_NUMTYPES] = {
 	StrID_Emitter_Position_Point_Name,				"Emitter Position",
 	StrID_Min_Depth_Slider_Name,					"Min Depth",
 	StrID_Max_Depth_Slider_Name,					"Max Depth",
-	StrID_Scale_Blocks_With_Depth_Name,				"Scale Blocks With Depth",
 	StrID_Near_Block_Size_Slider_Name,				"Near Block Size",
 	StrID_Far_Block_Size_Slider_Name,				"Far Block Size",
 	StrID_Wave_Block_Size_Multiplier_Slider_Name,	"Wave Block Size Multiplier",
