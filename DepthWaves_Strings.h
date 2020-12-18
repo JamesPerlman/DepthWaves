@@ -35,9 +35,12 @@ typedef enum {
 	StrID_Wave_Block_Size_Multiplier_Slider_Name,
 	StrID_Wave_Displacement_Slider_Name,
 	StrID_Wave_Displacement_Direction_Name,
-	StrID_Wave_Brightness_Slider_Name,
+	StrID_Wave_Color_Name,
+	StrID_Wave_Color_Mix_Slider_Name,
 	StrID_Wave_Velocity_Slider_Name,
 	StrID_Wave_Decay_Slider_Name,
+	StrID_Colorize_Waves_Checkbox_Name,
+	StrID_Colorize_Waves_Cycle_Radius_Slider_Name,
 	StrID_Num_Blocks_X_Name,
 	StrID_Num_Blocks_Y_Name,
 	StrID_NUMTYPES

@@ -431,14 +431,6 @@ namespace {
 			1.f
 		);
 
-		GetCameraTransformations(
-			in_data,
-			in_data->current_time,
-			&cameraPosition,
-			&cameraOrientation,
-			&cameraRotation
-		);
-
 		*waveTransformMatrix = vmath::Matrix4::rotationZYX(-cameraRotation) * vmath::Matrix4::rotationZYX(-cameraOrientation) * vmath::Matrix4::translation(-cameraPosition);
 		*cameraTransform = CameraTransform(
 			cameraPosition,
@@ -463,7 +455,6 @@ namespace {
 		AEGP_SuiteHandler	suites(in_data->pica_basicP);
 
 		std::vector<Impulse> impulses;
-		std::vector<PF_ParamDef> keyframeCheckouts;
 
 		A_u_long timeScale = in_data->time_scale;
 		A_long timeStep = in_data->time_step;
@@ -492,7 +483,7 @@ namespace {
 				&emitterImpulse_param
 			));
 
-			keyframeCheckouts.push_back(emitterImpulse_param);
+			//keyframeCheckouts.push_back(emitterImpulse_param);
 
 			bool isEmitting = emitterImpulse_param.u.bd.value;
 
@@ -511,6 +502,11 @@ namespace {
 			if (impulses.size() > 0) {
 				impulses.back().endTime = keyTime;
 			}
+
+			ERR(suites.ParamUtilsSuite3()->PF_CheckinKeyframe(
+				in_data->effect_ref,
+				&emitterImpulse_param
+			));
 		}
 
 		// generate waves from impulses
@@ -521,9 +517,9 @@ namespace {
 				continue;
 			}
 
-			PF_FpLong now = in_data->current_time / timeScale;
-			PF_FpLong impulseStart = impulse.startTime / timeScale;
-			PF_FpLong impulseEnd = impulse.endTime / timeScale;
+			PF_FpLong now = (PF_FpLong)in_data->current_time / (PF_FpLong)timeScale;
+			PF_FpLong impulseStart = (PF_FpLong)impulse.startTime / (PF_FpLong)timeScale;
+			PF_FpLong impulseEnd = (PF_FpLong)impulse.endTime / (PF_FpLong)timeScale;
 
 			PF_FpLong timeFromStart = now - impulseStart;
 			PF_FpLong timeFromEnd = now - impulseEnd;
@@ -534,14 +530,15 @@ namespace {
 					waveBlockSizeMultiplier_param,
 					waveDisplacement_param,
 					waveDisplacementDirection_param,
-					waveBrightness_param,
+					waveColor_param,
+					waveColorMix_param,
 					waveVelocity_param,
 					waveDecay_param;
 
 				PF_FpLong waveDisplacement,
-					waveBrightness,
 					waveVelocity,
-					waveDecay;
+					waveDecay,
+					waveColorMix;
 
 				vmath::Vector3 waveEmitterPosition,
 					waveDisplacementDirection;
@@ -549,7 +546,7 @@ namespace {
 				AEFX_CLR_STRUCT(emitterPosition_param);
 				ERR(PF_CHECKOUT_PARAM(in_data,
 					DepthWaves_EMITTER_POSITION,
-					keyTime,
+					impulse.startTime,
 					timeStep,
 					timeScale,
 					&emitterPosition_param));
@@ -557,7 +554,7 @@ namespace {
 				AEFX_CLR_STRUCT(waveDisplacement_param);
 				ERR(PF_CHECKOUT_PARAM(in_data,
 					DepthWaves_WAVE_DISPLACEMENT,
-					keyTime,
+					impulse.startTime,
 					timeStep,
 					timeScale,
 					&waveDisplacement_param));
@@ -565,7 +562,7 @@ namespace {
 				AEFX_CLR_STRUCT(waveBlockSizeMultiplier_param);
 				ERR(PF_CHECKOUT_PARAM(in_data,
 					DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER,
-					keyTime,
+					impulse.startTime,
 					timeStep,
 					timeScale,
 					&waveBlockSizeMultiplier_param));
@@ -573,23 +570,31 @@ namespace {
 				AEFX_CLR_STRUCT(waveDisplacementDirection_param);
 				ERR(PF_CHECKOUT_PARAM(in_data,
 					DepthWaves_WAVE_DISPLACEMENT_DIRECTION,
-					keyTime,
+					impulse.startTime,
 					timeStep,
 					timeScale,
 					&waveDisplacementDirection_param));
 
-				AEFX_CLR_STRUCT(waveBrightness_param);
+				AEFX_CLR_STRUCT(waveColor_param);
 				ERR(PF_CHECKOUT_PARAM(in_data,
-					DepthWaves_WAVE_BRIGHTNESS,
-					keyTime,
+					DepthWaves_WAVE_COLOR,
+					impulse.startTime,
 					timeStep,
 					timeScale,
-					&waveBrightness_param));
+					&waveColor_param));
+
+				AEFX_CLR_STRUCT(waveColorMix_param);
+				ERR(PF_CHECKOUT_PARAM(in_data,
+					DepthWaves_WAVE_COLOR_MIX,
+					impulse.startTime,
+					timeStep,
+					timeScale,
+					&waveColorMix_param));
 
 				AEFX_CLR_STRUCT(waveVelocity_param);
 				ERR(PF_CHECKOUT_PARAM(in_data,
 					DepthWaves_WAVE_VELOCITY,
-					keyTime,
+					impulse.startTime,
 					timeStep,
 					timeScale,
 					&waveVelocity_param));
@@ -597,11 +602,10 @@ namespace {
 				AEFX_CLR_STRUCT(waveDecay_param);
 				ERR(PF_CHECKOUT_PARAM(in_data,
 					DepthWaves_WAVE_DECAY,
-					keyTime,
+					impulse.startTime,
 					timeStep,
 					timeScale,
 					&waveDecay_param));
-
 
 				waveVelocity = waveVelocity_param.u.fs_d.value;
 				waveDecay = waveDecay_param.u.fs_d.value;
@@ -609,23 +613,28 @@ namespace {
 				PF_FpLong amplitude = pow(waveDecay, timeFromEnd);
 
 				waveDisplacement = amplitude * waveDisplacement_param.u.fs_d.value;
-				waveBrightness = amplitude * waveBrightness_param.u.fs_d.value;
+				waveColorMix = amplitude * waveColorMix_param.u.fs_d.value;
 
 				PF_FpLong outerRadius = waveVelocity * timeFromStart;
 				PF_FpLong innerRadius = timeFromEnd <= 0.0 ? 0.0 : waveVelocity * timeFromEnd;
 				PF_FpLong waveAmplitude = pow(waveDecay, (timeFromStart + timeFromEnd) * 0.5);
 				PF_FpLong waveBlockSizeMultiplier = MIX(1.0, waveBlockSizeMultiplier_param.u.fs_d.value, waveAmplitude);
 
+				// Sometimes point3ds come in at half their expected value.  These downsample values seem to correlate when that does happen.
+				float sx = (float)in_data->downsample_x.den / (float)in_data->downsample_x.num;
+				float sy = (float)in_data->downsample_y.den / (float)in_data->downsample_y.num;
+				float sz = sy;
+
 				waveEmitterPosition = vmath::Vector3(
-					(float)emitterPosition_param.u.point3d_d.x_value,
-					(float)emitterPosition_param.u.point3d_d.y_value,
-					(float)emitterPosition_param.u.point3d_d.z_value
+					(float)emitterPosition_param.u.point3d_d.x_value * sx,
+					(float)emitterPosition_param.u.point3d_d.y_value * sy,
+					(float)emitterPosition_param.u.point3d_d.z_value * sz
 				);
 
 				waveDisplacementDirection = vmath::Vector3(
-					(float)waveDisplacementDirection_param.u.point3d_d.x_value,
-					(float)waveDisplacementDirection_param.u.point3d_d.y_value,
-					(float)waveDisplacementDirection_param.u.point3d_d.z_value
+					(float)waveDisplacementDirection_param.u.point3d_d.x_value * sx,
+					(float)waveDisplacementDirection_param.u.point3d_d.y_value * sy,
+					(float)waveDisplacementDirection_param.u.point3d_d.z_value * sz
 				);
 
 				vmath::Vector4 transformedPosition = waveTransformMatrix * vmath::Vector4(waveEmitterPosition, 1.f);
@@ -646,26 +655,36 @@ namespace {
 					(gl::GLfloat)waveDisplacement
 				};
 
+				gl::GLfloat waveColor[4] = {
+					(float)waveColor_param.u.cd.value.red / 255.f,
+					(float)waveColor_param.u.cd.value.green / 255.f,
+					(float)waveColor_param.u.cd.value.blue / 255.f,
+					(float)waveColor_param.u.cd.value.alpha / 255.f
+				};
+
 				Wave wave(
 					wavePosition,
 					waveDisplacementVector,
+					waveColor,
 					(gl::GLfloat)waveBlockSizeMultiplier,
-					(gl::GLfloat)waveBrightness,
+					(gl::GLfloat)waveColorMix,
 					(gl::GLfloat)outerRadius,
-					(gl::GLfloat)innerRadius
+					(gl::GLfloat)innerRadius,
+					(gl::GLfloat)timeFromStart
 				);
 
 				waves.push_back(wave);
+
+				ERR(PF_CHECKIN_PARAM(in_data, &emitterPosition_param));
+				ERR(PF_CHECKIN_PARAM(in_data, &waveDisplacement_param));
+				ERR(PF_CHECKIN_PARAM(in_data, &waveBlockSizeMultiplier_param));
+				ERR(PF_CHECKIN_PARAM(in_data, &waveDisplacementDirection_param));
+				ERR(PF_CHECKIN_PARAM(in_data, &waveColor_param));
+				ERR(PF_CHECKIN_PARAM(in_data, &waveColorMix_param));
+				ERR(PF_CHECKIN_PARAM(in_data, &waveVelocity_param));
+				ERR(PF_CHECKIN_PARAM(in_data, &waveDecay_param));
 			}
 		}
-
-		for (PF_ParamDef &checkout : keyframeCheckouts) {
-			ERR(suites.ParamUtilsSuite3()->PF_CheckinKeyframe(
-				in_data->effect_ref,
-				&checkout
-			));
-		}
-
 		return err;
 	}
 
@@ -699,6 +718,12 @@ namespace {
 
 		u = glGetUniformLocation(program, "waveCount");
 		glUniform1i(u, info->numWaves);
+
+		u = glGetUniformLocation(program, "colorizeWaves");
+		glUniform1i(u, (gl::GLint)info->colorizeWaves);
+
+		u = glGetUniformLocation(program, "colorCycleRadius");
+		glUniform1f(u, (gl::GLfloat)info->colorCycleRadius);
 
 		glDispatchCompute(info->numBlocksX, info->numBlocksY, 1);
 		
@@ -977,7 +1002,7 @@ ParamsSetup (
 		DepthWaves_MIN_BLOCK_SIZE_DEFAULT,
 		PF_Precision_THOUSANDTHS,
 		PF_ValueDisplayFlag_NONE,
-		PF_ParamFlag_CANNOT_TIME_VARY,
+		PF_ParamFlag_RESERVED1,
 		NEAR_BLOCK_SIZE_DISK_ID
 	);
 
@@ -993,7 +1018,7 @@ ParamsSetup (
 		DepthWaves_MAX_BLOCK_SIZE_DEFAULT,
 		PF_Precision_THOUSANDTHS,
 		PF_ValueDisplayFlag_NONE,
-		PF_ParamFlag_CANNOT_TIME_VARY,
+		PF_ParamFlag_RESERVED1,
 		NEAR_BLOCK_SIZE_DISK_ID
 	);
 
@@ -1042,21 +1067,30 @@ ParamsSetup (
 
 	AEFX_CLR_STRUCT(def);
 
-	// Wave Brightness
-	PF_ADD_FLOAT_SLIDERX(
-		STR(StrID_Wave_Brightness_Slider_Name),
-		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MIN,
-		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MAX,
-		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MIN,
-		DepthWaves_WAVE_BRIGHTNESS_SLIDER_MAX,
-		DepthWaves_WAVE_BRIGHTNESS_DEFAULT,
-		PF_Precision_HUNDREDTHS,
-		PF_ValueDisplayFlag_NONE,
-		PF_ParamFlag_RESERVED1,
-		WAVE_BRIGHTNESS_DISK_ID
+	// Wave Color
+	PF_ADD_COLOR(
+		STR(StrID_Wave_Color_Name),
+		0,
+		0,
+		0,
+		WAVE_COLOR_DISK_ID
 	);
 
 	AEFX_CLR_STRUCT(def);
+
+	// Wave Color Mix
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Wave_Color_Mix_Slider_Name),
+		DepthWaves_WAVE_COLOR_MIX_SLIDER_MIN,
+		DepthWaves_WAVE_COLOR_MIX_SLIDER_MAX,
+		DepthWaves_WAVE_COLOR_MIX_SLIDER_MIN,
+		DepthWaves_WAVE_COLOR_MIX_SLIDER_MAX,
+		DepthWaves_WAVE_COLOR_MIX_DEFAULT,
+		PF_Precision_TENTHS,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		WAVE_VELOCITY_DISK_ID
+	);
 
 	// Wave Velocity
 	PF_ADD_FLOAT_SLIDERX(
@@ -1086,6 +1120,32 @@ ParamsSetup (
 		PF_ValueDisplayFlag_NONE,
 		PF_ParamFlag_RESERVED1,
 		WAVE_DECAY_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Colorize Waves Checkbox
+	PF_ADD_CHECKBOXX(
+		STR(StrID_Colorize_Waves_Checkbox_Name),
+		DepthWaves_EMITTER_IMPULSE_DEFAULT,
+		PF_ParamFlag_RESERVED1,
+		COLORIZE_WAVES_DISK_ID
+	);
+
+	AEFX_CLR_STRUCT(def);
+
+	// Colorize Waves Cycle Radius
+	PF_ADD_FLOAT_SLIDERX(
+		STR(StrID_Colorize_Waves_Cycle_Radius_Slider_Name),
+		DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_SLIDER_MIN,
+		DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_SLIDER_MAX,
+		DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_SLIDER_MIN,
+		DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_SLIDER_MAX,
+		DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_DEFAULT,
+		PF_Precision_TENTHS,
+		PF_ValueDisplayFlag_NONE,
+		PF_ParamFlag_RESERVED1,
+		COLORIZE_WAVES_CYCLE_RADIUS_DISK_ID
 	);
 
 	AEFX_CLR_STRUCT(def);
@@ -1187,7 +1247,7 @@ PreRender(
 {
 	PF_Err	err = PF_Err_NONE,
 			err2 = PF_Err_NONE;
-
+	
 	PF_CheckoutResult in_result;
 	PF_CheckoutResult depthMapLayer_result;
 
@@ -1200,14 +1260,18 @@ PreRender(
 		nearBlockSize_param,
 		farBlockSize_param,
 		numBlocksX_param,
-		numBlocksY_param;
+		numBlocksY_param,
+		colorizeWaves_param,
+		colorizeWavesCycleRadius_param;
 
 	PF_FpLong nearBlockSize, farBlockSize,
-		minDepth, maxDepth;
+		minDepth, maxDepth,
+		colorizeWavesCycleRadius;
+
+	A_Boolean colorizeWaves;
 
 	A_long numBlocksX, numBlocksY;
 
-	std::vector<PF_ParamDef> paramCheckouts;
 	std::vector<Wave>waves;
 
 	vmath::Matrix4 waveTransformMatrix;
@@ -1287,6 +1351,25 @@ PreRender(
 		in_data->time_scale,
 		&numBlocksY_param));
 
+	AEFX_CLR_STRUCT(colorizeWaves_param);
+
+	ERR(PF_CHECKOUT_PARAM(in_data,
+		DepthWaves_COLORIZE_WAVES,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&colorizeWaves_param));
+
+	AEFX_CLR_STRUCT(colorizeWavesCycleRadius_param);
+
+	ERR(PF_CHECKOUT_PARAM(in_data,
+		DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS,
+		in_data->current_time,
+		in_data->time_step,
+		in_data->time_scale,
+		&colorizeWavesCycleRadius_param));
+
+
 	if (!err) {
 		// other params
 		DepthWavesInfo info;
@@ -1297,6 +1380,8 @@ PreRender(
 		maxDepth = maxDepth_param.u.fs_d.value;
 		numBlocksX = (A_long)numBlocksX_param.u.fs_d.value;
 		numBlocksY = (A_long)numBlocksY_param.u.fs_d.value;
+		colorizeWaves = colorizeWaves_param.u.bd.value;
+		colorizeWavesCycleRadius = colorizeWavesCycleRadius_param.u.fs_d.value;
 
 		ERR(GetSceneInfo(
 			in_data,
@@ -1322,6 +1407,8 @@ PreRender(
 			infoP->numBlocksY = numBlocksY;
 			infoP->cameraTransform = cameraTransform;
 			infoP->numWaves = waves.size();
+			infoP->colorizeWaves = colorizeWaves;
+			infoP->colorCycleRadius = colorizeWavesCycleRadius;
 
 			if (infoP->numWaves) {
 				infoP->waves = (Wave*)malloc(waves.size() * sizeof(Wave));
@@ -1349,6 +1436,14 @@ PreRender(
 		}
 	}
 
+	ERR(PF_CHECKIN_PARAM(in_data, &minDepth_param));
+	ERR(PF_CHECKIN_PARAM(in_data, &maxDepth_param));
+	ERR(PF_CHECKIN_PARAM(in_data, &nearBlockSize_param));
+	ERR(PF_CHECKIN_PARAM(in_data, &farBlockSize_param));
+	ERR(PF_CHECKIN_PARAM(in_data, &numBlocksX_param));
+	ERR(PF_CHECKIN_PARAM(in_data, &numBlocksY_param));
+	ERR(PF_CHECKIN_PARAM(in_data, &colorizeWaves_param));
+	ERR(PF_CHECKIN_PARAM(in_data, &colorizeWavesCycleRadius_param));
 	return err;
 }
 
@@ -1375,7 +1470,7 @@ SmartRender(
 	ERR((extra->cb->checkout_layer_pixels(in_data->effect_ref, DepthWaves_DEPTHMAP_LAYER, &depth_worldP)));
 
 	ERR(extra->cb->checkout_output(in_data->effect_ref, &output_worldP));
-
+	
 	ERR(AEFX_AcquireSuite(in_data,
 		out_data,
 		kPFWorldSuite,
@@ -1446,6 +1541,8 @@ SmartRender(
 				Wave *waveBuf = new Wave[info->numWaves];
 				glGetNamedBufferSubData(renderContext->waveBuffer, 0, info->numWaves * sizeof(Wave), waveBuf);
 
+				delete[] waveBuf;
+				delete[] verts;
 				RenderGL(
 					renderContext,
 					renderContext->mOutputFrameTexture,
@@ -1453,9 +1550,6 @@ SmartRender(
 					info,
 					multiplier16bit
 				);
-
-				delete[] waveBuf;
-				delete[] verts;
 			}
 			// - we toggle PBO textures (we use the PBO we just created as an input)
 			// AESDK_OpenGL_MakeReadyToRender(*renderContext.get(), colorTexture);

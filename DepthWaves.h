@@ -87,34 +87,38 @@ typedef float				fpshort;
 
 /* Parameter defaults */
 
-#define	DepthWaves_EMITTER_IMPULSE_DEFAULT				false
-#define DepthWaves_MIN_DEPTH_DEFAULT					100.0
-#define DepthWaves_MAX_DEPTH_DEFAULT					1000.0
-#define DepthWaves_MIN_BLOCK_SIZE_DEFAULT				0.0
-#define DepthWaves_MAX_BLOCK_SIZE_DEFAULT				0.0
-#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_DEFAULT	0.0
-#define DepthWaves_WAVE_DISPLACEMENT_DEFAULT			100.0
-#define DepthWaves_WAVE_BRIGHTNESS_DEFAULT				0.0
-#define DepthWaves_WAVE_VELOCITY_DEFAULT				100.0
-#define DepthWaves_WAVE_DECAY_DEFAULT					0.95
-#define DepthWaves_NUM_BLOCKS_DEFAULT					50
+#define	DepthWaves_EMITTER_IMPULSE_DEFAULT					false
+#define DepthWaves_MIN_DEPTH_DEFAULT						100.0
+#define DepthWaves_MAX_DEPTH_DEFAULT						1000.0
+#define DepthWaves_MIN_BLOCK_SIZE_DEFAULT					0.0
+#define DepthWaves_MAX_BLOCK_SIZE_DEFAULT					0.0
+#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_DEFAULT		0.0
+#define DepthWaves_WAVE_DISPLACEMENT_DEFAULT				100.0
+#define DepthWaves_WAVE_COLOR_MIX_DEFAULT					0.0
+#define DepthWaves_WAVE_VELOCITY_DEFAULT					100.0
+#define DepthWaves_WAVE_DECAY_DEFAULT						0.95
+#define DepthWaves_COLORIZE_WAVES_CHECKBOX_DEFAULT			false
+#define DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_DEFAULT		0.0
+#define DepthWaves_NUM_BLOCKS_DEFAULT						50
 
-#define DepthWaves_BLOCK_SIZE_SLIDER_MIN				0.0000
-#define DepthWaves_BLOCK_SIZE_SLIDER_MAX				1000.0
-#define DepthWaves_DEPTH_SLIDER_MIN						0
-#define DepthWaves_DEPTH_SLIDER_MAX						100000.0
-#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_MIN		0.0
-#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_MAX		100.0
-#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN			-10000.0
-#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX			10000.0
-#define DepthWaves_WAVE_BRIGHTNESS_SLIDER_MIN			-1.0
-#define DepthWaves_WAVE_BRIGHTNESS_SLIDER_MAX			1.0
-#define DepthWaves_WAVE_VELOCITY_SLIDER_MIN				0.0
-#define DepthWaves_WAVE_VELOCITY_SLIDER_MAX				10000.0
-#define DepthWaves_WAVE_DECAY_SLIDER_MIN				0.0
-#define DepthWaves_WAVE_DECAY_SLIDER_MAX				1.0
-#define DepthWaves_NUM_BLOCKS_SLIDER_MIN				1
-#define DepthWaves_NUM_BLOCKS_SLIDER_MAX				2000
+#define DepthWaves_BLOCK_SIZE_SLIDER_MIN					0.0000
+#define DepthWaves_BLOCK_SIZE_SLIDER_MAX					1000.0
+#define DepthWaves_DEPTH_SLIDER_MIN							0
+#define DepthWaves_DEPTH_SLIDER_MAX							100000.0
+#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_MIN			0.0
+#define DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER_MAX			100.0
+#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MIN				-10000.0
+#define DepthWaves_WAVE_DISPLACEMENT_SLIDER_MAX				10000.0
+#define DepthWaves_WAVE_COLOR_MIX_SLIDER_MIN				0.0
+#define DepthWaves_WAVE_COLOR_MIX_SLIDER_MAX				1.0
+#define DepthWaves_WAVE_VELOCITY_SLIDER_MIN					0.0
+#define DepthWaves_WAVE_VELOCITY_SLIDER_MAX					10000.0
+#define DepthWaves_WAVE_DECAY_SLIDER_MIN					0.0
+#define DepthWaves_WAVE_DECAY_SLIDER_MAX					1.0
+#define DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_SLIDER_MIN	0.0
+#define DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS_SLIDER_MAX	100000.0
+#define DepthWaves_NUM_BLOCKS_SLIDER_MIN					1
+#define DepthWaves_NUM_BLOCKS_SLIDER_MAX					2000
 
 enum {
 	DepthWaves_INPUT = 0,
@@ -128,9 +132,12 @@ enum {
 	DepthWaves_WAVE_BLOCK_SIZE_MULTIPLIER,
 	DepthWaves_WAVE_DISPLACEMENT,
 	DepthWaves_WAVE_DISPLACEMENT_DIRECTION,
-	DepthWaves_WAVE_BRIGHTNESS,
+	DepthWaves_WAVE_COLOR,
+	DepthWaves_WAVE_COLOR_MIX,
 	DepthWaves_WAVE_VELOCITY,
 	DepthWaves_WAVE_DECAY,
+	DepthWaves_COLORIZE_WAVES,
+	DepthWaves_COLORIZE_WAVES_CYCLE_RADIUS,
 	DepthWaves_NUM_BLOCKS_X,
 	DepthWaves_NUM_BLOCKS_Y,
 	DepthWaves_NUM_PARAMS
@@ -147,9 +154,12 @@ enum {
 	WAVE_BLOCK_SIZE_MULTIPLIER_DISK_ID,
 	WAVE_DISPLACEMENT_DISK_ID,
 	WAVE_DISPLACEMENT_DIRECTION_DISK_ID,
-	WAVE_BRIGHTNESS_DISK_ID,
+	WAVE_COLOR_DISK_ID,
+	WAVE_COLOR_MIX_DISK_ID,
 	WAVE_VELOCITY_DISK_ID,
 	WAVE_DECAY_DISK_ID,
+	COLORIZE_WAVES_DISK_ID,
+	COLORIZE_WAVES_CYCLE_RADIUS_DISK_ID,
 	NUM_BLOCKS_X_DISK_ID,
 	NUM_BLOCKS_Y_DISK_ID
 };
@@ -171,6 +181,9 @@ extern "C" {
 typedef struct DepthWavesInfo {
 	PF_FpLong minDepth, maxDepth;
 	PF_FpLong nearBlockSize, farBlockSize;
+	PF_FpLong colorCycleRadius;
+
+	A_Boolean colorizeWaves;
 
 	A_long numBlocksX;
 	A_long numBlocksY;

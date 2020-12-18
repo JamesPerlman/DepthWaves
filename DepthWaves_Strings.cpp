@@ -42,9 +42,12 @@ TableString		g_strs[StrID_NUMTYPES] = {
 	StrID_Wave_Block_Size_Multiplier_Slider_Name,	"Wave Block Size Multiplier",
 	StrID_Wave_Displacement_Slider_Name,			"Wave Maximum Displacement",
 	StrID_Wave_Displacement_Direction_Name,			"Wave Displacement Direction",
-	StrID_Wave_Brightness_Slider_Name,				"Wave Brightness",
+	StrID_Wave_Color_Name,							"Wave Color",
+	StrID_Wave_Color_Mix_Slider_Name,				"Wave Color Mix",
 	StrID_Wave_Velocity_Slider_Name,				"Wave Velocity",
 	StrID_Wave_Decay_Slider_Name,					"Wave Decay",
+	StrID_Colorize_Waves_Checkbox_Name,				"Colorize Waves",
+	StrID_Colorize_Waves_Cycle_Radius_Slider_Name,	"Colorize Cycle Radius",
 	StrID_Num_Blocks_X_Name,						"Num Blocks (Horizontal)",
 	StrID_Num_Blocks_Y_Name,						"Num Blocks (Vertical)"
 };

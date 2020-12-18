@@ -12,11 +12,14 @@ struct Vertex {
 struct Wave {
 	vec4 position;
 	vec4 displacement;
+	vec4 color;
 	
 	float blockSizeMultiplier;
-	float brightness;
+	float colorMix;
 	float outerRadius;
 	float innerRadius;
+
+	vec4 timeSinceBirth; // timeSinceBirth should be x
 };
 
 layout(binding = 0, rgba32f) uniform readonly image2D colorTex;
@@ -36,6 +39,8 @@ uniform vec2 cameraFov;
 uniform int waveCount;
 uniform float nearBlockSize;
 uniform float farBlockSize;
+uniform bool colorizeWaves;
+uniform float colorCycleRadius;
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
@@ -150,11 +155,10 @@ void main()
 	ivec2 px = ivec2(uv * colorSizef);
 	vec3 point = getWorldPosition();
 	
-	float brightness = 0.f;
+	vec4 pixelColor = imageLoad(colorTex, px).gbar;
+	vec4 blockColor = pixelColor;
 	float size = 1.f;
 	float depth = length(point);
-
-	
 
 	float m = (farBlockSize - nearBlockSize) / (maxDepth - minDepth);
 	float b = farBlockSize - m * maxDepth;
@@ -164,9 +168,10 @@ void main()
 	for (int i = 0; i < waveCount; ++i)
 	{
 		vec3 d = point.xyz - w[i].position.xyz;
+		float lc = length(d);
 		float ir = w[i].innerRadius;
 		float or = w[i].outerRadius;
-		float r = clamp(length(d), ir, or);
+		float r = clamp(lc, ir, or);
 		float t = (r - ir) / (or - ir);
 		float c = cos(M_PI * (t - 0.5f));
 		float k = c * c;
@@ -177,7 +182,16 @@ void main()
 			point += k * w[i].displacement.w * normalize(w[i].displacement.xyz);
 		}
 
-		brightness += k * w[i].brightness;
+		vec4 targetColor;
+		if (colorizeWaves) {
+			vec3 hsl = rgb2hsl(w[i].color.rgb);
+			float hue = mod(lc + hsl.z, colorCycleRadius) / colorCycleRadius;
+			vec3 rgb = hsl2rgb(vec3(hue, hsl.y, hsl.z));
+			targetColor = mix(pixelColor, vec4(rgb, 1.0), w[i].colorMix);
+		} else {
+			targetColor = mix(pixelColor, w[i].color, w[i].colorMix);
+		}
+		blockColor = mix(blockColor, targetColor, k);
 
 		size *= mix(1.0, w[i].blockSizeMultiplier, k);
 	}
@@ -188,21 +202,11 @@ void main()
 	uint idx = gl_NumWorkGroups.y * gl_GlobalInvocationID.x + gl_GlobalInvocationID.y;
 	v[idx].pos = vec4(point, 1.0);
 
-	// Set vertex color
-	vec3 rgb;
-	vec4 pixelColor = imageLoad(colorTex, px);
-
 	if (waveCount == 0) {
-		v[idx].color = pixelColor;
+		v[idx].color = pixelColor.argb;
 		v[idx].size.x = blockSize;
 	} else {
-		vec3 hsl = rgb2hsl(pixelColor.gba);
-		// Normalize and clamp brightness to [-1, 1]
-		float b = clamp(brightness, -1.f, 1.f); 
-		// If hsl.z > 0, lighten from hsl.z to 1.0, otherwise darken from 0.0 to hsl.z
-		float l = b > 0.f ? mix(hsl.z, 1.0, b) : mix(hsl.z, 0, -b);
-		vec3 rgb = hsl2rgb(vec3(hsl.xy, l));
-		v[idx].color = vec4(pixelColor.r, rgb.r, rgb.g, rgb.b);
+		v[idx].color = blockColor.argb;
 		v[idx].size = vec4(size);
 	}
 }
